@@ -1,5 +1,6 @@
-import { useEffect, useId, useState, type FormEvent } from 'react'
+import { useEffect, useId, useMemo, useState, type FormEvent } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
+import { useTranslation } from '../../i18n/LanguageContext'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import styles from './AuthModal.module.css'
 
@@ -14,24 +15,11 @@ export interface AuthModalProps {
   reason?: AuthModalReason
 }
 
-const REASON_COPY: Record<
-  AuthModalReason,
-  { title: string; subtitle: string }
-> = {
-  'save-progress': {
-    title: '登入以儲存你的進度',
-    subtitle: '同步到所有裝置',
-  },
-  'upgrade-pro': {
-    title: '登入後升級 Pro 解鎖此功能',
-    subtitle: '登入後即可升級 Pro',
-  },
-}
-
 /**
- * 登入／註冊彈窗：Google OAuth 與 Email，依 `reason` 顯示不同標題。
+ * 登入／註冊彈窗：Google OAuth 與 Email，依 `reason` 與目前語系顯示文案。
  */
 export function AuthModal({ isOpen, onClose, reason = 'save-progress' }: AuthModalProps) {
+  const { t } = useTranslation()
   const { user, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth()
   const uid = useId()
   const [mode, setMode] = useState<'login' | 'signup'>('login')
@@ -40,7 +28,12 @@ export function AuthModal({ isOpen, onClose, reason = 'save-progress' }: AuthMod
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const copy = REASON_COPY[reason]
+  const copy = useMemo(() => {
+    if (reason === 'save-progress') {
+      return { title: t.auth.modal_save_title, subtitle: t.auth.modal_save_subtitle }
+    }
+    return { title: t.auth.modal_upgrade_title, subtitle: t.auth.modal_upgrade_subtitle }
+  }, [reason, t])
 
   useEffect(() => {
     if (isOpen && user) onClose()
@@ -70,7 +63,7 @@ export function AuthModal({ isOpen, onClose, reason = 'save-progress' }: AuthMod
     try {
       await signInWithGoogle()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Google 登入失敗')
+      setError(e instanceof Error ? e.message : t.auth.error_google_failed)
       setLoading(false)
     }
   }
@@ -102,7 +95,12 @@ export function AuthModal({ isOpen, onClose, reason = 'save-progress' }: AuthMod
         aria-labelledby={`${uid}-auth-title`}
         onClick={(ev) => ev.stopPropagation()}
       >
-        <button type="button" className={styles.closeX} onClick={onClose} aria-label="關閉">
+        <button
+          type="button"
+          className={styles.closeX}
+          onClick={onClose}
+          aria-label={t.auth.modal_close_aria}
+        >
           ×
         </button>
 
@@ -110,15 +108,16 @@ export function AuthModal({ isOpen, onClose, reason = 'save-progress' }: AuthMod
           <p className={styles.logo} aria-hidden>
             🃏
           </p>
-          <p className={styles.brandName}>GTODrill</p>
+          <p className={styles.brandName}>{t.auth.modal_brand}</p>
           <h2 id={`${uid}-auth-title`} className={styles.modalTitle}>
             {copy.title}
           </h2>
           <p className={styles.modalSubtitle}>{copy.subtitle}</p>
           {!isSupabaseConfigured ? (
             <p className={styles.devHint}>
-              本機未設定 Supabase（缺少 VITE_SUPABASE_URL／VITE_SUPABASE_ANON_KEY）；請於專案根目錄建立
-              <code className={styles.devHintCode}>.env</code>。
+              {t.auth.modal_supabase_hint_before}
+              <code className={styles.devHintCode}>.env</code>
+              {t.auth.modal_supabase_hint_after}
             </p>
           ) : null}
         </div>
@@ -134,7 +133,7 @@ export function AuthModal({ isOpen, onClose, reason = 'save-progress' }: AuthMod
               setError(null)
             }}
           >
-            登入
+            {t.auth.tab_login}
           </button>
           <button
             type="button"
@@ -146,7 +145,7 @@ export function AuthModal({ isOpen, onClose, reason = 'save-progress' }: AuthMod
               setError(null)
             }}
           >
-            註冊
+            {t.auth.tab_signup}
           </button>
         </div>
 
@@ -157,15 +156,15 @@ export function AuthModal({ isOpen, onClose, reason = 'save-progress' }: AuthMod
           disabled={loading}
         >
           <GoogleMark />
-          使用 Google 登入
+          {t.auth.google_sign_in}
         </button>
 
-        <div className={styles.divider}>或 Email 登入</div>
+        <div className={styles.divider}>{t.auth.divider_or_email}</div>
 
         <form onSubmit={(e) => void onSubmit(e)}>
           <div className={styles.field}>
             <label className={styles.label} htmlFor={`${uid}-email`}>
-              Email
+              {t.auth.label_email}
             </label>
             <input
               id={`${uid}-email`}
@@ -179,7 +178,7 @@ export function AuthModal({ isOpen, onClose, reason = 'save-progress' }: AuthMod
           </div>
           <div className={styles.field}>
             <label className={styles.label} htmlFor={`${uid}-password`}>
-              密碼
+              {t.auth.label_password}
             </label>
             <input
               id={`${uid}-password`}
@@ -198,13 +197,13 @@ export function AuthModal({ isOpen, onClose, reason = 'save-progress' }: AuthMod
             </p>
           ) : null}
           <button type="submit" className={styles.submitBtn} disabled={loading}>
-            {mode === 'login' ? '登入' : '註冊'}
+            {mode === 'login' ? t.auth.submit_login : t.auth.submit_signup}
           </button>
         </form>
 
         {reason === 'upgrade-pro' ? (
           <button type="button" className={styles.continueFree} onClick={onClose}>
-            或先用免費功能繼續
+            {t.auth.continue_free}
           </button>
         ) : null}
       </div>

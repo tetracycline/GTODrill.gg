@@ -66,6 +66,40 @@ export interface Translations {
     guest_mode: string
     login_to_sync: string
     sign_out: string
+    modal_close_aria: string
+    modal_brand: string
+    modal_save_title: string
+    modal_save_subtitle: string
+    modal_upgrade_title: string
+    modal_upgrade_subtitle: string
+    modal_supabase_hint_before: string
+    modal_supabase_hint_after: string
+    tab_login: string
+    tab_signup: string
+    google_sign_in: string
+    divider_or_email: string
+    label_email: string
+    label_password: string
+    submit_login: string
+    submit_signup: string
+    continue_free: string
+    error_google_failed: string
+    /** 側邊欄未登入時：儲存進度標語（與登入按鈕同列）。 */
+    sidebar_promo_headline: string
+    /** 側邊欄未登入時：同步裝置說明。 */
+    sidebar_promo_sub: string
+  }
+  /** Pro 升級彈窗（Gumroad 等）。 */
+  upgrade: {
+    title: string
+    lead: string
+    feature_bvb_line: string
+    feature_ai: string
+    feature_hand_history: string
+    feature_weak_sync: string
+    price: string
+    cta: string
+    dismiss: string
   }
   pages: {
     rfi_subtitle: string

@@ -550,6 +550,44 @@ function App() {
           ☰
         </button>
         <span className={styles.mobileTitle}>{modeTitle[mode]}</span>
+        <div className={styles.mobileHeaderUser}>
+          {user ? (
+            <div className={styles.userCardCompact}>
+              <div className={styles.userRowCompact}>
+                {profile?.avatar_url ? (
+                  <img
+                    src={profile.avatar_url}
+                    alt=""
+                    className={styles.userAvatarImgSm}
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <span className={styles.userAvatarFallbackSm} aria-hidden>
+                    {initials}
+                  </span>
+                )}
+                <div className={styles.userCompactText}>
+                  <p className={styles.userNameSm}>{displayName}</p>
+                  <button
+                    type="button"
+                    className={styles.userSignOutSm}
+                    onClick={() => void handleSignOut()}
+                  >
+                    {t.auth.sign_out}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className={styles.mobileLoginBtn}
+              onClick={() => openAuthModal('save-progress')}
+            >
+              {t.auth.tab_login}
+            </button>
+          )}
+        </div>
       </header>
       {mobileNavOpen ? (
         <button
@@ -680,52 +718,6 @@ function App() {
           </nav>
         ) : null}
 
-        <div className={styles.sidebarUser}>
-          <div className={styles.sidebarUserCard}>
-            {user ? (
-              <div className={styles.sidebarUserRow}>
-                {profile?.avatar_url ? (
-                  <img
-                    src={profile.avatar_url}
-                    alt=""
-                    className={styles.sidebarAvatarImg}
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <span className={styles.sidebarAvatarFallback} aria-hidden>
-                    {initials}
-                  </span>
-                )}
-                <div>
-                  <p className={styles.sidebarUserName}>{displayName}</p>
-                  {emailLine ? <p className={styles.sidebarEmail}>{emailLine}</p> : null}
-                  <button
-                    type="button"
-                    className={styles.sidebarSignOut}
-                    onClick={() => void handleSignOut()}
-                  >
-                    {t.auth.sign_out}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className={styles.sidebarLoginPromoRow}>
-                  <button
-                    type="button"
-                    className={styles.sidebarLoginBtn}
-                    onClick={() => openAuthModal('save-progress')}
-                  >
-                    登入
-                  </button>
-                  <p className={styles.sidebarLoginHeadline}>儲存你的進度</p>
-                </div>
-                <p className={styles.sidebarLoginSub}>同步到所有裝置</p>
-              </>
-            )}
-          </div>
-        </div>
-
         <div className={styles.sidebarFooter}>
           <DailyProgress progress={progress} accuracy={accuracy} pct={pct} target={target} />
           <div className={styles.langRow}>
@@ -776,7 +768,54 @@ function App() {
           </button>
         </div>
       </aside>
-      <div className={styles.mainColumn}>{renderMain()}</div>
+      <div className={styles.mainColumn}>
+        <div className={styles.desktopTopBar}>
+          <div className={styles.userCard}>
+            {user ? (
+              <div className={styles.userRow}>
+                {profile?.avatar_url ? (
+                  <img
+                    src={profile.avatar_url}
+                    alt=""
+                    className={styles.userAvatarImg}
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <span className={styles.userAvatarFallback} aria-hidden>
+                    {initials}
+                  </span>
+                )}
+                <div>
+                  <p className={styles.userName}>{displayName}</p>
+                  {emailLine ? <p className={styles.userEmail}>{emailLine}</p> : null}
+                  <button
+                    type="button"
+                    className={styles.userSignOut}
+                    onClick={() => void handleSignOut()}
+                  >
+                    {t.auth.sign_out}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className={styles.loginPromoRow}>
+                  <button
+                    type="button"
+                    className={styles.loginPromoBtn}
+                    onClick={() => openAuthModal('save-progress')}
+                  >
+                    {t.auth.tab_login}
+                  </button>
+                  <p className={styles.loginPromoHeadline}>{t.auth.sidebar_promo_headline}</p>
+                </div>
+                <p className={styles.loginPromoSub}>{t.auth.sidebar_promo_sub}</p>
+              </>
+            )}
+          </div>
+        </div>
+        {renderMain()}
+      </div>
       <GameSettings
         open={gameSettingsOpen}
         onClose={() => setGameSettingsOpen(false)}
