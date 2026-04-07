@@ -1,0 +1,52 @@
+.wrap {
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  border-radius: 10px;
+  background: #18181b;
+  border: 1px solid #27272a;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #a1a1aa;
+  margin-bottom: 8px;
+}
+
+.barTrack {
+  height: 8px;
+  border-radius: 999px;
+  background: #27272a;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.barFill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.2s ease, background 0.2s ease;
+}
+
+.barGreen {
+  background: linear-gradient(90deg, #16a34a, #22c55e);
+}
+
+.barAmber {
+  background: linear-gradient(90deg, #d97706, #f59e0b);
+}
+
+.barGray {
+  background: #52525b;
+}
+
+.counts {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e4e4e7;
+  margin-bottom: 4px;
+}
+
+.accuracy {
+  font-size: 12px;
+  color: #71717a;
+}

@@ -1,0 +1,125 @@
+.card {
+  background: #18181b;
+  border: 1px solid #27272a;
+  border-radius: 12px;
+  padding: 20px;
+  position: relative;
+  min-height: 380px;
+}
+
+.badge {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #16a34a;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cardsRow {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-top: 36px;
+  padding-bottom: 16px;
+}
+
+.cardOverlap {
+  margin-left: -28px;
+}
+
+.cardOverlap:first-child {
+  margin-left: 0;
+}
+
+.handName {
+  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 16px;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn {
+  flex: 1;
+  height: 52px;
+  border-radius: 10px;
+  border: none;
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.btnRaise {
+  background: #16a34a;
+}
+
+.btnFold {
+  background: #dc2626;
+}
+
+.btnHint {
+  font-size: 14px;
+  font-weight: 700;
+  opacity: 0.95;
+}
+
+.result {
+  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+  padding: 14px 8px;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.resultOk {
+  color: #22c55e;
+}
+
+.resultBad {
+  color: #dc2626;
+}
+
+@media (max-width: 768px) {
+  .card {
+    min-height: 0;
+    padding: 16px;
+  }
+
+  .cardsRow {
+    padding-top: 28px;
+  }
+
+  .cardOverlap {
+    margin-left: -22px;
+  }
+
+  .handName {
+    font-size: 16px;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .btn {
+    min-height: 48px;
+    font-size: 16px;
+  }
+}

@@ -1,0 +1,280 @@
+.header {
+  text-align: center;
+  padding: 28px 24px 8px;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #71717a;
+}
+
+.shell {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.colLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.colRight {
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 900px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .header {
+    padding: 12px 12px 6px;
+  }
+
+  .title {
+    font-size: 22px;
+  }
+
+  .subtitle {
+    font-size: 13px;
+  }
+
+  .shell {
+    padding: 12px;
+    gap: 14px;
+  }
+
+  .toggle {
+    font-size: 14px;
+    min-height: 48px;
+  }
+
+  .matrixCard {
+    padding: 12px;
+  }
+}
+
+.settingsCard {
+  background: #18181b;
+  border: 1px solid #27272a;
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.cardTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.iconBtn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: #27272a;
+  color: #a1a1aa;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.stackDisplay {
+  text-align: center;
+  margin: 12px 0 16px;
+}
+
+.stackBig {
+  font-size: 36px;
+  font-weight: 800;
+  color: #d97706;
+}
+
+.slider {
+  width: 100%;
+  margin-bottom: 8px;
+  accent-color: #d97706;
+}
+
+.sliderLabels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #71717a;
+  margin-bottom: 16px;
+}
+
+.presetRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.presetBtn {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #27272a;
+  color: #a1a1aa;
+}
+
+.presetBtn:hover {
+  color: #fff;
+}
+
+.rowLabel {
+  font-size: 13px;
+  color: #71717a;
+  margin-bottom: 8px;
+}
+
+.positions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.btnPos {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  background: #27272a;
+  color: #a1a1aa;
+}
+
+.btnPosActive {
+  background: #16a34a;
+  color: #ffffff;
+}
+
+.summaryCard {
+  background: #18181b;
+  border: 1px solid #27272a;
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+
+.summaryLine {
+  font-size: 18px;
+  font-weight: 700;
+  color: #d97706;
+  margin-bottom: 8px;
+}
+
+.summaryCount {
+  font-size: 15px;
+  color: #e4e4e7;
+  margin-bottom: 12px;
+}
+
+.explain {
+  font-size: 12px;
+  color: #71717a;
+  line-height: 1.55;
+}
+
+.matrixCard {
+  background: #18181b;
+  border: 1px solid #27272a;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.badgeBb {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #d97706;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.badgePos {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #16a34a;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: #a1a1aa;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dotP {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f97316;
+}
+
+.dotF {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #27272a;
+  border: 1px solid #3f3f46;
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  font-size: 12px;
+  color: #a1a1aa;
+}
+
+.footerRight {
+  color: #f59e0b;
+  font-weight: 600;
+}

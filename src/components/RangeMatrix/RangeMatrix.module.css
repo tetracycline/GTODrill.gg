@@ -1,0 +1,135 @@
+.wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 22px repeat(13, 1fr);
+  grid-template-rows: 22px repeat(13, 1fr);
+  gap: 1px;
+  min-width: 0;
+}
+
+.corner {
+  background: transparent;
+}
+
+.headerCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #71717a;
+  font-weight: 500;
+  min-height: 22px;
+}
+
+.rowHeader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #71717a;
+  font-weight: 500;
+}
+
+.cell {
+  min-width: 34px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 500;
+  text-align: center;
+  padding: 0 1px;
+  box-sizing: border-box;
+}
+
+.cellRaise {
+  background: #f97316;
+  color: #ffffff;
+}
+
+.cellFoldDark {
+  background: #1c1c1e;
+  color: #52525b;
+}
+
+.vsThreeBet {
+  background: #e11d48;
+  color: #ffffff;
+}
+
+.cellCallGreen {
+  background: #22c55e;
+  color: #ffffff;
+}
+
+.vsFold {
+  background: #27272a;
+  color: #52525b;
+}
+
+.vs3betFourbet {
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+.cellPush {
+  background: #f97316;
+  color: #ffffff;
+}
+
+.highlight {
+  box-shadow: inset 0 0 0 2px var(--cell-highlight);
+  z-index: 1;
+}
+
+.flashCorrect {
+  animation: flashCorrect 0.3s ease;
+}
+
+.flashWrong {
+  animation: flashWrong 0.3s ease;
+}
+
+@keyframes flashCorrect {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 0 transparent;
+  }
+  50% {
+    box-shadow: inset 0 0 0 2px #22c55e;
+  }
+}
+
+@keyframes flashWrong {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 0 transparent;
+  }
+  50% {
+    box-shadow: inset 0 0 0 2px #dc2626;
+  }
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 18px repeat(13, 1fr);
+    grid-template-rows: 18px repeat(13, 1fr);
+  }
+
+  .headerCell,
+  .rowHeader {
+    font-size: 10px;
+    min-height: 18px;
+  }
+
+  .cell {
+    min-width: 24px;
+    height: 22px;
+    font-size: 7px;
+  }
+}

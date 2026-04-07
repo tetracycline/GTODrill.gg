@@ -1,0 +1,103 @@
+.header {
+  text-align: center;
+  padding: 28px 24px 16px;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #71717a;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 24px 48px;
+}
+
+.card {
+  background: #18181b;
+  border: 1px solid #27272a;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 12px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.modeName {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fafafa;
+}
+
+.stats {
+  font-size: 13px;
+  color: #a1a1aa;
+}
+
+.btn {
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: none;
+  background: #f97316;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn:hover {
+  filter: brightness(1.08);
+}
+
+.details {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #27272a;
+}
+
+.toggle {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: #a1a1aa;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.toggle:hover {
+  color: #ffffff;
+}
+
+.spotLine {
+  font-size: 13px;
+  color: #d4d4d8;
+  padding: 4px 0;
+  padding-left: 8px;
+  border-left: 2px solid #3f3f46;
+  margin-bottom: 6px;
+}
+
+.empty {
+  text-align: center;
+  color: #71717a;
+  font-size: 14px;
+  padding: 32px 16px;
+}

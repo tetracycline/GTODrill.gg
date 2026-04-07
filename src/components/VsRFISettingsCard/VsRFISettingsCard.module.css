@@ -1,0 +1,125 @@
+.card {
+  background: #18181b;
+  border: 1px solid #27272a;
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.iconRow {
+  display: flex;
+  gap: 8px;
+}
+
+.row {
+  margin-bottom: 14px;
+}
+
+.row:last-child {
+  margin-bottom: 0;
+}
+
+.rowLabel {
+  font-size: 13px;
+  color: #71717a;
+  margin-bottom: 8px;
+}
+
+.iconBtn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: #27272a;
+  color: #a1a1aa;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.iconBtn:hover {
+  color: #ffffff;
+}
+
+.positions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.posWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.btnVillain {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  background: #27272a;
+  color: #a1a1aa;
+}
+
+.btnVillainActive {
+  background: #e11d48;
+  color: #ffffff;
+}
+
+.btnHero {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  background: #27272a;
+  color: #a1a1aa;
+}
+
+.btnHeroActive {
+  background: #4f46e5;
+  color: #ffffff;
+}
+
+.keyHint {
+  font-size: 10px;
+  color: #71717a;
+}
+
+@media (max-width: 768px) {
+  .card {
+    padding: 14px 16px;
+  }
+
+  .iconBtn {
+    width: 44px;
+    height: 44px;
+  }
+
+  .btnVillain,
+  .btnHero {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+}

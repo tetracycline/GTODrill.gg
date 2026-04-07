@@ -1,0 +1,293 @@
+.header {
+  text-align: center;
+  padding: 28px 24px 8px;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #71717a;
+}
+
+.main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.colLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.colRight {
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 900px) {
+  .main {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .header {
+    padding: 12px 12px 6px;
+  }
+
+  .title {
+    font-size: 22px;
+  }
+
+  .subtitle {
+    font-size: 13px;
+  }
+
+  .main {
+    padding: 12px;
+    gap: 14px;
+  }
+}
+
+.settingsCard {
+  background: #18181b;
+  border: 1px solid #27272a;
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.cardTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.iconRow {
+  display: flex;
+  gap: 8px;
+}
+
+.iconBtn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: #27272a;
+  color: #a1a1aa;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.infoLine {
+  font-size: 14px;
+  color: #e4e4e7;
+  margin-bottom: 6px;
+}
+
+.infoSmall {
+  font-size: 12px;
+  color: #71717a;
+  line-height: 1.5;
+}
+
+.handCard {
+  background: #18181b;
+  border: 1px solid #27272a;
+  border-radius: 12px;
+  padding: 20px;
+  position: relative;
+  min-height: 360px;
+}
+
+.badge {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #27272a;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.cardsRow {
+  display: flex;
+  justify-content: center;
+  padding-top: 48px;
+  padding-bottom: 16px;
+}
+
+.cardOverlap {
+  margin-left: -28px;
+}
+
+.cardOverlap:first-child {
+  margin-left: 0;
+}
+
+.handName {
+  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 16px;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn {
+  flex: 1;
+  height: 52px;
+  border-radius: 10px;
+  border: none;
+  font-size: 17px;
+  font-weight: 700;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.btnCall {
+  background: #16a34a;
+}
+
+.btnFold {
+  background: #3f3f46;
+}
+
+.btnHint {
+  font-size: 14px;
+}
+
+.result {
+  text-align: center;
+  font-size: 17px;
+  font-weight: 700;
+  padding: 14px 8px;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.resultOk {
+  color: #22c55e;
+}
+
+.resultBad {
+  color: #dc2626;
+}
+
+.toggle {
+  width: 100%;
+  height: 52px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+  cursor: pointer;
+  margin-bottom: 12px;
+  background: #18181b;
+  border: 1px solid #27272a;
+}
+
+.toggleActive {
+  border-color: #3b82f6;
+}
+
+.matrixCard {
+  background: #18181b;
+  border: 1px solid #27272a;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: #a1a1aa;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dotC {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
+.dotF {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #27272a;
+  border: 1px solid #3f3f46;
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  font-size: 13px;
+  color: #a1a1aa;
+}
+
+.footerRight {
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .handCard {
+    min-height: 0;
+    padding: 16px;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .btn {
+    min-height: 48px;
+  }
+
+  .toggle {
+    font-size: 14px;
+    min-height: 48px;
+  }
+}
