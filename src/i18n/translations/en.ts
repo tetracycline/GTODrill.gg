@@ -22,6 +22,7 @@ export const en: Translations = {
     weak_spots: 'Weak Spots',
     hand_history: 'Hand Analysis',
     ai_qa: '💬 AI Q&A',
+    admin: '⚙ Admin',
   },
   stats_bar: {
     total: 'Total',
@@ -60,6 +61,11 @@ export const en: Translations = {
     training_modes_sidebar: 'Training modes',
     wrong_book: 'Wrong book',
     settings_aria: 'Settings',
+  },
+  auth: {
+    guest_mode: 'Guest mode',
+    login_to_sync: 'Sign in to sync progress',
+    sign_out: 'Sign out',
   },
   pages: {
     rfi_subtitle: 'Practice opening ranges by position.',

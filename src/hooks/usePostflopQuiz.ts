@@ -96,7 +96,10 @@ export function usePostflopQuiz(
   integration?: QuizIntegrationOptions,
 ) {
   const integrationRef = useRef(integration)
-  integrationRef.current = integration
+
+  useEffect(() => {
+    integrationRef.current = integration
+  }, [integration])
 
   const [currentQuestion, setCurrentQuestion] = useState<PostflopQuestion | null>(null)
   const [phase, setPhase] = useState<QuizPhase>('loading')
@@ -183,6 +186,12 @@ export function usePostflopQuiz(
   const answer = useCallback(
     (option: string) => {
       if (phase !== 'question' || !currentQuestion) return
+
+      const int = integrationRef.current
+      if (int?.allowAnswer && !int.allowAnswer('postflop-cbet')) {
+        int.onAnswerDenied?.('postflop-cbet')
+        return
+      }
 
       const correct = option === currentQuestion.correctAnswer
       setPickedOption(option)

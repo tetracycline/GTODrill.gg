@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useAiDailyQuota } from '../../hooks/useAiDailyQuota'
 import { useTranslation } from '../../i18n/LanguageContext'
 import { getCoachResponse, type CoachMessage } from '../../utils/aiCoach'
 import styles from './AIChatPage.module.css'
@@ -41,11 +42,19 @@ interface ChatMessage {
   isLoading?: boolean
 }
 
+export interface AIChatPageProps {
+  /** Pro／管理員為 true 時不限制每日則數。 */
+  isUnlimited?: boolean
+  /** 免費額度用盡時回呼（例如開啟升級彈窗）。 */
+  onFreeLimitReached?: () => void
+}
+
 /**
  * AI 教練對話頁：自由提問、手牌文字分析、快捷提問。
  */
-export function AIChatPage() {
+export function AIChatPage({ isUnlimited = true, onFreeLimitReached }: AIChatPageProps) {
   const { lang } = useTranslation()
+  const { canSend, recordUserMessage, getRemaining, freeLimit } = useAiDailyQuota(isUnlimited)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
@@ -112,6 +121,10 @@ export function AIChatPage() {
    */
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return
+    if (!canSend()) {
+      onFreeLimitReached?.()
+      return
+    }
 
     const userMsg: ChatMessage = {
       id: `user-${Date.now()}`,
@@ -132,6 +145,7 @@ export function AIChatPage() {
     setMessages(nextMessages.slice(-MAX_MESSAGES))
     setInput('')
     setIsLoading(true)
+    recordUserMessage()
     requestAnimationFrame(autoResize)
 
     try {
@@ -270,7 +284,18 @@ export function AIChatPage() {
         </div>
         <div className={styles.metaRow}>
           <span>{lang === 'en' ? 'Enter to send, Shift+Enter newline' : 'Enter 送出，Shift+Enter 換行'}</span>
-          <span>{input.length > 500 ? `${input.length}` : ''}</span>
+          <span>
+            {!isUnlimited ? (
+              <span className={styles.quotaHint}>
+                {lang === 'en'
+                  ? `${getRemaining()} / ${freeLimit} free today`
+                  : lang === 'zh-CN'
+                    ? `今日免費 ${getRemaining()} / ${freeLimit} 則`
+                    : `今日免費 ${getRemaining()} / ${freeLimit} 則`}
+              </span>
+            ) : null}
+            {input.length > 500 ? `${input.length}` : ''}
+          </span>
         </div>
       </div>
     </div>

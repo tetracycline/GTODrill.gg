@@ -14,11 +14,11 @@ const STORAGE_KEY = 'gto-language'
 
 /**
  * @param value - localStorage 讀出的字串
- * @returns 合法語系代碼，否則預設 zh-TW
+ * @returns 合法語系代碼，否則預設 en
  */
 function normalizeLanguage(value: string | null): Language {
   if (value === 'zh-CN' || value === 'en' || value === 'zh-TW') return value
-  return 'zh-TW'
+  return 'en'
 }
 
 interface LanguageContextValue {
@@ -28,9 +28,9 @@ interface LanguageContextValue {
 }
 
 const LanguageContext = createContext<LanguageContextValue>({
-  lang: 'zh-TW',
+  lang: 'en',
   setLang: () => {},
-  t: zhTW,
+  t: en,
 })
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {

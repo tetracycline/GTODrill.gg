@@ -18,6 +18,18 @@ export type QuizIntegrationOptions = {
   ) => void
   /** 每答一題更新今日練習量 */
   onDailyAnswer?: (mode: string, correct: boolean) => void
+  /**
+   * 若回傳 false，該題不計分、不寫入弱點／每日進度（例如免費額度用盡）。
+   *
+   * @param mode - 測驗模式 id。
+   */
+  allowAnswer?: (mode: string) => boolean
+  /**
+   * 當 {@link allowAnswer} 拒絕作答時觸發（可開啟升級提示）。
+   *
+   * @param mode - 測驗模式 id。
+   */
+  onAnswerDenied?: (mode: string) => void
   /** 僅從弱點池抽題 */
   weakReviewOnly?: boolean
   /** 依模式與位置取弱點手牌索引（preflop） */

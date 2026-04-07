@@ -212,3 +212,9 @@
   color: var(--text-secondary);
   font-size: 0.75rem;
 }
+
+.quotaHint {
+  margin-right: 8px;
+  color: #f97316;
+  font-weight: 600;
+}

@@ -22,6 +22,7 @@ export const zhTW: Translations = {
     weak_spots: '弱點分析',
     hand_history: '手牌分析',
     ai_qa: '💬 AI 問答',
+    admin: '⚙ 管理員',
   },
   stats_bar: {
     total: '總計',
@@ -60,6 +61,11 @@ export const zhTW: Translations = {
     training_modes_sidebar: '訓練模式',
     wrong_book: '錯題本',
     settings_aria: '遊戲設定',
+  },
+  auth: {
+    guest_mode: '訪客模式',
+    login_to_sync: '登入以同步進度',
+    sign_out: '登出',
   },
   pages: {
     rfi_subtitle: '練習各位置的開牌範圍',

@@ -40,7 +40,7 @@ export interface CoachMessage {
  */
 export async function getCoachResponse(
   messages: CoachMessage[],
-  language: 'zh-TW' | 'zh-CN' | 'en' = 'zh-TW',
+  language: 'zh-TW' | 'zh-CN' | 'en' = 'en',
 ): Promise<string> {
   const url = import.meta.env.DEV ? '/claude-proxy/v1/messages' : '/api/claude'
 

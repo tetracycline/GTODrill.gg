@@ -25,6 +25,14 @@ import { WeakSpotsPage } from './components/WeakSpotsPage/WeakSpotsPage'
 import { DailyProgress } from './components/DailyProgress/DailyProgress'
 import { HandHistoryPage } from './components/HandHistoryPage/HandHistoryPage'
 import { AIChatPage } from './components/AIChatPage/AIChatPage'
+import { AdminPage } from './components/AdminPage/AdminPage'
+import {
+  AuthModal,
+  type AuthModalReason,
+} from './components/AuthModal/AuthModal'
+import { UpgradeModal } from './components/UpgradeModal/UpgradeModal'
+import { FREE_POSTFLOP_ANSWERS_PER_DAY, isProOnlyMode } from './config/freemium'
+import { useAuth } from './contexts/AuthContext'
 import { useKeyboard } from './hooks/useKeyboard'
 import { usePushFoldQuiz } from './hooks/usePushFoldQuiz'
 import type { QuizIntegrationOptions } from './hooks/quizIntegration'
@@ -58,8 +66,23 @@ export type TrainerMode =
   | 'ai-coach'
   | 'weakspots'
   | 'hand-history'
+  | 'admin'
 
 const EMPTY_STATS: QuizStats = { total: 0, correct: 0, streak: 0 }
+
+/**
+ * 側邊欄頭像沒有圖片時的縮寫字元。
+ *
+ * @param displayName - 顯示名稱。
+ * @param email - 後備 Email。
+ */
+function sidebarInitials(displayName: string, email: string): string {
+  const s = displayName.trim() || email.trim()
+  if (!s) return '?'
+  const parts = s.split(/\s+/).filter(Boolean)
+  if (parts.length >= 2) return (parts[0]!.slice(0, 1) + parts[1]!.slice(0, 1)).toUpperCase()
+  return s.slice(0, 2).toUpperCase()
+}
 
 interface RfiTrainingViewProps {
   quiz: ReturnType<typeof useQuiz>
@@ -187,6 +210,20 @@ function buildQuizIntegration(
  */
 function App() {
   const { t, lang, setLang } = useTranslation()
+  const { user, isLoggedIn, isAdmin, isPro, profile, signOut } = useAuth()
+  const [upgradeOpen, setUpgradeOpen] = useState(false)
+  const [authModalOpen, setAuthModalOpen] = useState(false)
+  const [authModalReason, setAuthModalReason] = useState<AuthModalReason>('save-progress')
+  const hasProAccess = isPro || isAdmin
+
+  const openAuthModal = useCallback((reason: AuthModalReason) => {
+    setAuthModalReason(reason)
+    setAuthModalOpen(true)
+  }, [])
+
+  const handleSignOut = useCallback(async () => {
+    await signOut()
+  }, [signOut])
 
   useLayoutEffect(() => {
     const th = localStorage.getItem('gto-theme') === 'light' ? 'light' : 'dark'
@@ -208,6 +245,7 @@ function App() {
         'ai-coach': t.sidebar.ai_qa,
         weakspots: t.sidebar.weak_spots,
         'hand-history': t.sidebar.hand_history,
+        admin: t.sidebar.admin,
       }) satisfies Record<TrainerMode, string>,
     [t],
   )
@@ -228,11 +266,42 @@ function App() {
     setMobileNavOpen(false)
   }, [])
 
-  const startWeakReview = useCallback((m: (typeof WEAK_SPOT_TRACKED_MODES)[number]) => {
-    setWeakReviewMode(m)
-    setMode(m as TrainerMode)
-    setMobileNavOpen(false)
-  }, [])
+  const requestMode = useCallback(
+    (m: TrainerMode) => {
+      if (m === 'admin') {
+        if (!isAdmin) return
+        goMode('admin')
+        return
+      }
+      if (isProOnlyMode(m) && !hasProAccess) {
+        if (!isLoggedIn) {
+          openAuthModal('upgrade-pro')
+          return
+        }
+        setUpgradeOpen(true)
+        return
+      }
+      goMode(m)
+    },
+    [goMode, hasProAccess, isAdmin, isLoggedIn, openAuthModal],
+  )
+
+  const startWeakReview = useCallback(
+    (m: (typeof WEAK_SPOT_TRACKED_MODES)[number]) => {
+      if (isProOnlyMode(m as TrainerMode) && !hasProAccess) {
+        if (!isLoggedIn) {
+          openAuthModal('upgrade-pro')
+          return
+        }
+        setUpgradeOpen(true)
+        return
+      }
+      setWeakReviewMode(m)
+      setMode(m as TrainerMode)
+      setMobileNavOpen(false)
+    },
+    [hasProAccess, isLoggedIn, openAuthModal],
+  )
 
   const [statsByMode, setStatsByMode] = useState({
     rfi: { ...EMPTY_STATS },
@@ -338,18 +407,32 @@ function App() {
       ),
     [weakReviewMode, recordResult, recordAnswer, pickWeakHandForMode, pickWeakQuestionIdForMode],
   )
-  const intPf = useMemo(
-    () =>
-      buildQuizIntegration(
-        'postflop-cbet',
-        weakReviewMode,
-        recordResult,
-        recordAnswer,
-        pickWeakHandForMode,
-        pickWeakQuestionIdForMode,
-      ),
-    [weakReviewMode, recordResult, recordAnswer, pickWeakHandForMode, pickWeakQuestionIdForMode],
-  )
+  const intPf = useMemo(() => {
+    const base = buildQuizIntegration(
+      'postflop-cbet',
+      weakReviewMode,
+      recordResult,
+      recordAnswer,
+      pickWeakHandForMode,
+      pickWeakQuestionIdForMode,
+    )
+    return {
+      ...base,
+      allowAnswer: (modeId: string) =>
+        modeId !== 'postflop-cbet' ||
+        hasProAccess ||
+        (progress.byMode['postflop-cbet']?.total ?? 0) < FREE_POSTFLOP_ANSWERS_PER_DAY,
+      onAnswerDenied: () => setUpgradeOpen(true),
+    }
+  }, [
+    weakReviewMode,
+    recordResult,
+    recordAnswer,
+    pickWeakHandForMode,
+    pickWeakQuestionIdForMode,
+    hasProAccess,
+    progress.byMode,
+  ])
 
   const rfiQuiz = useQuiz(statsByMode.rfi, setStats('rfi'), intRfi)
   const vsQuiz = useVsRFIQuiz(statsByMode.vsrfi, setStats('vsrfi'), intVsrfi)
@@ -400,6 +483,15 @@ function App() {
     }
   }, [mobileNavOpen])
 
+  const displayName = user
+    ? profile?.display_name ||
+      (user.user_metadata?.full_name as string | undefined) ||
+      user.email?.split('@')[0] ||
+      'User'
+    : ''
+  const emailLine = user ? (profile?.email ?? user.email ?? '') : ''
+  const initials = user ? sidebarInitials(displayName, emailLine) : ''
+
   const renderMain = () => {
     switch (mode) {
       case 'rfi':
@@ -421,7 +513,14 @@ function App() {
       case 'postflop-cbet':
         return <PostflopPage quiz={postflopQuiz} />
       case 'ai-coach':
-        return <AIChatPage />
+        return (
+          <AIChatPage
+            isUnlimited={hasProAccess}
+            onFreeLimitReached={() => setUpgradeOpen(true)}
+          />
+        )
+      case 'admin':
+        return <AdminPage onBack={() => goMode('rfi')} />
       case 'weakspots':
         return (
           <WeakSpotsPage
@@ -470,42 +569,42 @@ function App() {
           <button
             type="button"
             className={`${styles.navItem} ${mode === 'rfi' ? styles.navItemActive : ''}`}
-            onClick={() => goMode('rfi')}
+            onClick={() => requestMode('rfi')}
           >
             {t.sidebar.rfi}
           </button>
           <button
             type="button"
             className={`${styles.navItem} ${mode === 'vsrfi' ? styles.navItemActive : ''}`}
-            onClick={() => goMode('vsrfi')}
+            onClick={() => requestMode('vsrfi')}
           >
             {t.sidebar.vs_rfi}
           </button>
           <button
             type="button"
             className={`${styles.navItem} ${mode === 'bvb' ? styles.navItemActive : ''}`}
-            onClick={() => goMode('bvb')}
+            onClick={() => requestMode('bvb')}
           >
             {t.sidebar.bvb}
           </button>
           <button
             type="button"
             className={`${styles.navItem} ${mode === 'vs3bet' ? styles.navItemActive : ''}`}
-            onClick={() => goMode('vs3bet')}
+            onClick={() => requestMode('vs3bet')}
           >
             {t.sidebar.vs_3bet}
           </button>
           <button
             type="button"
             className={`${styles.navItem} ${mode === 'vs4bet' ? styles.navItemActive : ''}`}
-            onClick={() => goMode('vs4bet')}
+            onClick={() => requestMode('vs4bet')}
           >
             {t.sidebar.vs_4bet}
           </button>
           <button
             type="button"
             className={`${styles.navItem} ${mode === 'cold4bet' ? styles.navItemActive : ''}`}
-            onClick={() => goMode('cold4bet')}
+            onClick={() => requestMode('cold4bet')}
           >
             {t.sidebar.cold_4bet}
           </button>
@@ -516,7 +615,7 @@ function App() {
           <button
             type="button"
             className={`${styles.navItem} ${mode === 'postflop-cbet' ? styles.navItemActive : ''}`}
-            onClick={() => goMode('postflop-cbet')}
+            onClick={() => requestMode('postflop-cbet')}
           >
             {t.sidebar.postflop_cbet}
           </button>
@@ -527,14 +626,14 @@ function App() {
           <button
             type="button"
             className={`${styles.navItem} ${mode === 'pushfold' ? styles.navItemActive : ''}`}
-            onClick={() => goMode('pushfold')}
+            onClick={() => requestMode('pushfold')}
           >
             {t.sidebar.push_fold}
           </button>
           <button
             type="button"
             className={`${styles.navItem} ${mode === 'pushfoldchart' ? styles.navItemActive : ''}`}
-            onClick={() => goMode('pushfoldchart')}
+            onClick={() => requestMode('pushfoldchart')}
           >
             {t.sidebar.push_fold_chart}
           </button>
@@ -545,7 +644,7 @@ function App() {
           <button
             type="button"
             className={`${styles.navItem} ${mode === 'ai-coach' ? styles.navItemActive : ''}`}
-            onClick={() => goMode('ai-coach')}
+            onClick={() => requestMode('ai-coach')}
           >
             {t.sidebar.ai_qa}
           </button>
@@ -556,18 +655,76 @@ function App() {
           <button
             type="button"
             className={`${styles.navItem} ${mode === 'weakspots' ? styles.navItemActive : ''}`}
-            onClick={() => goMode('weakspots')}
+            onClick={() => requestMode('weakspots')}
           >
             {t.sidebar.weak_spots}
           </button>
           <button
             type="button"
             className={`${styles.navItem} ${mode === 'hand-history' ? styles.navItemActive : ''}`}
-            onClick={() => goMode('hand-history')}
+            onClick={() => requestMode('hand-history')}
           >
             {t.sidebar.hand_history}
           </button>
         </nav>
+
+        {isAdmin ? (
+          <nav className={styles.navList} aria-label={t.sidebar.admin}>
+            <button
+              type="button"
+              className={`${styles.navItem} ${mode === 'admin' ? styles.navItemActive : ''}`}
+              onClick={() => requestMode('admin')}
+            >
+              {t.sidebar.admin}
+            </button>
+          </nav>
+        ) : null}
+
+        <div className={styles.sidebarUser}>
+          <div className={styles.sidebarUserCard}>
+            {user ? (
+              <div className={styles.sidebarUserRow}>
+                {profile?.avatar_url ? (
+                  <img
+                    src={profile.avatar_url}
+                    alt=""
+                    className={styles.sidebarAvatarImg}
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <span className={styles.sidebarAvatarFallback} aria-hidden>
+                    {initials}
+                  </span>
+                )}
+                <div>
+                  <p className={styles.sidebarUserName}>{displayName}</p>
+                  {emailLine ? <p className={styles.sidebarEmail}>{emailLine}</p> : null}
+                  <button
+                    type="button"
+                    className={styles.sidebarSignOut}
+                    onClick={() => void handleSignOut()}
+                  >
+                    {t.auth.sign_out}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className={styles.sidebarLoginPromoRow}>
+                  <button
+                    type="button"
+                    className={styles.sidebarLoginBtn}
+                    onClick={() => openAuthModal('save-progress')}
+                  >
+                    登入
+                  </button>
+                  <p className={styles.sidebarLoginHeadline}>儲存你的進度</p>
+                </div>
+                <p className={styles.sidebarLoginSub}>同步到所有裝置</p>
+              </>
+            )}
+          </div>
+        </div>
 
         <div className={styles.sidebarFooter}>
           <DailyProgress progress={progress} accuracy={accuracy} pct={pct} target={target} />
@@ -627,6 +784,12 @@ function App() {
         onDailyTargetChange={setTarget}
       />
       <WrongBookPanel open={wrongBookOpen} onClose={() => setWrongBookOpen(false)} />
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        reason={authModalReason}
+      />
+      {upgradeOpen ? <UpgradeModal onClose={() => setUpgradeOpen(false)} /> : null}
     </div>
   )
 }

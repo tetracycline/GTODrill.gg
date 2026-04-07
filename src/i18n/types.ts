@@ -22,6 +22,7 @@ export interface Translations {
     weak_spots: string
     hand_history: string
     ai_qa: string
+    admin: string
   }
   stats_bar: {
     total: string
@@ -60,6 +61,11 @@ export interface Translations {
     training_modes_sidebar: string
     wrong_book: string
     settings_aria: string
+  }
+  auth: {
+    guest_mode: string
+    login_to_sync: string
+    sign_out: string
   }
   pages: {
     rfi_subtitle: string
