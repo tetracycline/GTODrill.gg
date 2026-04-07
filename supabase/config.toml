@@ -1,0 +1,6 @@
+# Supabase CLI 設定：https://supabase.com/docs/guides/cli/config
+# 使用 `supabase link` 後會寫入專案 `project_id`。
+
+[functions.gumroad-webhook]
+# Gumroad 伺服器 POST 不帶使用者 JWT，必須關閉驗證
+verify_jwt = false

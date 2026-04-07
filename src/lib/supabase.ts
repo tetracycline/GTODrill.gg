@@ -27,6 +27,23 @@ export type Profile = {
   is_admin: boolean
   subscription_status: 'free' | 'pro'
   subscription_expires_at: string | null
+  /** Gumroad webhook 寫入之最後 `sale_id`（若已執行對應 migration）。 */
+  gumroad_sale_id?: string | null
   created_at: string
   updated_at?: string
+}
+
+/**
+ * 目前是否為有效 Pro：`subscription_status === 'pro'` 且未過期。
+ * `subscription_expires_at` 為 `null` 或空字串時視為無到期日（向下相容舊資料／買斷）。
+ *
+ * @param profile - 使用者 `profiles` 列，可為 `null`。
+ */
+export function hasActiveProSubscription(profile: Profile | null | undefined): boolean {
+  if (!profile || profile.subscription_status !== 'pro') return false
+  const exp = profile.subscription_expires_at
+  if (exp == null || exp === '') return true
+  const t = new Date(exp).getTime()
+  if (Number.isNaN(t)) return true
+  return t > Date.now()
 }

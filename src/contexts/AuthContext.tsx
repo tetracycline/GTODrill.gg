@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
-import { supabase, type Profile } from '../lib/supabase'
+import { hasActiveProSubscription, supabase, type Profile } from '../lib/supabase'
 
 export interface AuthContextValue {
   user: User | null
@@ -122,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const isAdmin = profile?.is_admin ?? false
-  const isPro = profile?.subscription_status === 'pro'
+  const isPro = hasActiveProSubscription(profile)
   const isLoggedIn = user !== null
 
   return (
