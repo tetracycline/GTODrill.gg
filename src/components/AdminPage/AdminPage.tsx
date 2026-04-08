@@ -25,6 +25,8 @@ export function AdminPage({ onBack }: AdminPageProps) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [patchingId, setPatchingId] = useState<string | null>(null)
+  const [activateEmail, setActivateEmail] = useState('')
+  const [activatingByEmail, setActivatingByEmail] = useState(false)
 
   const load = useCallback(async () => {
     if (!session?.access_token) {
@@ -79,6 +81,40 @@ export function AdminPage({ onBack }: AdminPageProps) {
     [session?.access_token, load, refreshProfile],
   )
 
+  /**
+   * 依 email 將對應 `profiles` 設為 Pro（手動啟用，略過 Gumroad）。
+   */
+  const manualActivateByEmail = useCallback(async () => {
+    const email = activateEmail.trim().toLowerCase()
+    if (!email) {
+      setError('請輸入 email')
+      return
+    }
+    if (!session?.access_token) return
+    setActivatingByEmail(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/admin', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'activate_pro_by_email', email }),
+      })
+      const json = (await res.json()) as { error?: string }
+      if (!res.ok) throw new Error(json.error ?? res.statusText)
+      window.alert(`Done: ${email} is now Pro`)
+      setActivateEmail('')
+      await load()
+      await refreshProfile()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '啟用失敗')
+    } finally {
+      setActivatingByEmail(false)
+    }
+  }, [activateEmail, session?.access_token, load, refreshProfile])
+
   return (
     <div className={styles.wrap}>
       <header className={styles.header}>
@@ -98,6 +134,30 @@ export function AdminPage({ onBack }: AdminPageProps) {
 
       {!loading && data ? (
         <>
+          <div className={styles.manualRow}>
+            <label className={styles.manualLabel} htmlFor="admin-activate-email">
+              Email
+            </label>
+            <input
+              id="admin-activate-email"
+              type="email"
+              className={styles.manualInput}
+              value={activateEmail}
+              onChange={(e) => setActivateEmail(e.target.value)}
+              placeholder="user@example.com"
+              disabled={activatingByEmail}
+              autoComplete="email"
+            />
+            <button
+              type="button"
+              className={styles.manualBtn}
+              disabled={activatingByEmail}
+              onClick={() => void manualActivateByEmail()}
+            >
+              Activate Pro
+            </button>
+          </div>
+
           <div className={styles.stats}>
             <div className={styles.statCard}>
               <p className={styles.statLabel}>總用戶</p>

@@ -74,6 +74,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     })
   }
 
+  if (req.method === 'POST') {
+    let body: { action?: string; email?: string }
+    try {
+      body = typeof req.body === 'string' ? (JSON.parse(req.body) as typeof body) : req.body
+    } catch {
+      return res.status(400).json({ error: 'Invalid JSON body' })
+    }
+
+    if (body.action !== 'activate_pro_by_email' || !body.email?.trim()) {
+      return res.status(400).json({ error: 'action and email required' })
+    }
+
+    const email = body.email.trim().toLowerCase()
+    const { data: rows, error: upErr } = await adminClient
+      .from('profiles')
+      .update({
+        subscription_status: 'pro',
+        subscription_expires_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('email', email)
+      .select('id')
+
+    if (upErr) return res.status(500).json({ error: upErr.message })
+    if (!rows?.length) {
+      return res.status(404).json({ error: 'No profile with this email' })
+    }
+    return res.status(200).json({ success: true, updated: rows.length })
+  }
+
   if (req.method === 'PATCH') {
     let body: { userId?: string; updates?: Record<string, unknown> }
     try {

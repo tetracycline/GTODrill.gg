@@ -83,6 +83,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [fetchProfile])
 
+  /**
+   * 使用者切回分頁或視窗時重新載入 `profiles`，避免僅在後台改權限時前端卡在舊狀態。
+   */
+  useEffect(() => {
+    if (!supabase || !user?.id) return
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void fetchProfile(user.id)
+      }
+    }
+
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+    window.addEventListener('focus', refreshWhenVisible)
+    return () => {
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+      window.removeEventListener('focus', refreshWhenVisible)
+    }
+  }, [user?.id, fetchProfile])
+
   const signInWithGoogle = useCallback(async () => {
     if (!supabase) {
       throw new Error(

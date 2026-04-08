@@ -98,6 +98,13 @@ export const en: Translations = {
     price: '$8 / month',
     cta: 'Upgrade to Pro',
     dismiss: 'Not now',
+    license_section_title: 'Have a license key?',
+    license_placeholder: 'Paste your Gumroad license key',
+    license_submit: 'Activate Pro',
+    license_empty: 'Please enter your license key',
+    license_need_login: 'Please sign in first, then activate your license.',
+    license_success: 'Pro activated. Enjoy!',
+    license_error_generic: 'Something went wrong. Please try again.',
   },
   pages: {
     rfi_subtitle: 'Practice opening ranges by position.',

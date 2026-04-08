@@ -98,6 +98,13 @@ export const zhCN: Translations = {
     price: '$8 / 月',
     cta: '升级 Pro',
     dismiss: '暂时不用',
+    license_section_title: '有许可证？',
+    license_placeholder: '粘贴 Gumroad 许可证密钥',
+    license_submit: '激活 Pro',
+    license_empty: '请输入许可证密钥',
+    license_need_login: '请先登录，再激活许可证。',
+    license_success: '已激活 Pro。',
+    license_error_generic: '出错了，请稍后再试。',
   },
   pages: {
     rfi_subtitle: '练习各位置的开牌范围',

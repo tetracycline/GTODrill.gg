@@ -100,6 +100,15 @@ export interface Translations {
     price: string
     cta: string
     dismiss: string
+    /** 序號啟用區塊標題。 */
+    license_section_title: string
+    license_placeholder: string
+    license_submit: string
+    /** 未輸入序號時提示（與 API 400 文案對齊可選）。 */
+    license_empty: string
+    license_need_login: string
+    license_success: string
+    license_error_generic: string
   }
   pages: {
     rfi_subtitle: string
