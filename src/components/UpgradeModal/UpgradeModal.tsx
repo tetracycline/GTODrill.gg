@@ -19,18 +19,14 @@ function resolveUpgradeHref(): string {
 }
 
 /**
- * 免費／訪客點選 Pro 功能時顯示的升級說明；文案隨語系切換，預設開啟 Gumroad 結帳頁。
- * 已登入使用者可貼上 Gumroad 序號呼叫 `/api/activate-license` 啟用 Pro。
+ * 免費／訪客點選 Pro 功能時顯示的升級說明；導向 Gumroad 結帳。
+ * 付款成功後由 Gumroad Ping（Supabase Edge Function）依**相同 email** 自動升級並在續訂時延長 `subscription_expires_at`。
  */
 export function UpgradeModal({ onClose }: UpgradeModalProps) {
   const { t } = useTranslation()
-  const { session, isLoggedIn, refreshProfile } = useAuth()
+  const { isLoggedIn, refreshProfile } = useAuth()
   const upgradeHref = resolveUpgradeHref()
-
-  const [licenseKey, setLicenseKey] = useState('')
-  const [licenseError, setLicenseError] = useState<string | null>(null)
-  const [licenseOk, setLicenseOk] = useState(false)
-  const [licenseLoading, setLicenseLoading] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -41,43 +37,14 @@ export function UpgradeModal({ onClose }: UpgradeModalProps) {
   }, [onClose])
 
   /**
-   * 驗證序號並更新目前帳號之 `profiles`（須已登入）。
+   * 付款後手動重新拉取 `profiles`（Webhook 可能有數秒延遲）。
    */
-  const handleActivateLicense = async () => {
-    setLicenseError(null)
-    setLicenseOk(false)
-    const trimmed = licenseKey.trim()
-    if (!trimmed) {
-      setLicenseError(t.upgrade.license_empty)
-      return
-    }
-    if (!session?.access_token) {
-      setLicenseError(t.upgrade.license_need_login)
-      return
-    }
-
-    setLicenseLoading(true)
+  const handleRefreshStatus = async () => {
+    setRefreshing(true)
     try {
-      const res = await fetch('/api/activate-license', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ licenseKey: trimmed }),
-      })
-      const json = (await res.json()) as { error?: string; success?: boolean }
-      if (!res.ok) {
-        setLicenseError(json.error ?? t.upgrade.license_error_generic)
-        return
-      }
-      setLicenseOk(true)
-      setLicenseKey('')
       await refreshProfile()
-    } catch {
-      setLicenseError(t.upgrade.license_error_generic)
     } finally {
-      setLicenseLoading(false)
+      setRefreshing(false)
     }
   }
 
@@ -102,46 +69,23 @@ export function UpgradeModal({ onClose }: UpgradeModalProps) {
         </ul>
         <p className={styles.price}>{t.upgrade.price}</p>
 
-        <div className={styles.licenseBlock}>
-          <h3 className={styles.licenseTitle}>{t.upgrade.license_section_title}</h3>
-          {licenseError ? (
-            <p id="upgrade-license-err" className={styles.licenseError} role="alert">
-              {licenseError}
-            </p>
-          ) : null}
-          {licenseOk ? (
-            <p className={styles.licenseOk} role="status">
-              {t.upgrade.license_success}
-            </p>
-          ) : null}
-          <input
-            type="text"
-            className={styles.licenseInput}
-            value={licenseKey}
-            onChange={(e) => {
-              setLicenseKey(e.target.value)
-              setLicenseError(null)
-              setLicenseOk(false)
-            }}
-            placeholder={t.upgrade.license_placeholder}
-            disabled={licenseLoading || !isLoggedIn}
-            autoComplete="off"
-            spellCheck={false}
-            aria-invalid={Boolean(licenseError)}
-            aria-describedby={licenseError ? 'upgrade-license-err' : undefined}
-          />
-          <button
-            type="button"
-            className={styles.licenseButton}
-            onClick={() => void handleActivateLicense()}
-            disabled={licenseLoading || !isLoggedIn}
-          >
-            {licenseLoading ? '…' : t.upgrade.license_submit}
-          </button>
-          {!isLoggedIn ? (
-            <p className={styles.licenseHint}>{t.upgrade.license_need_login}</p>
-          ) : null}
+        <div className={styles.hintBlock}>
+          <p className={styles.hintText}>{t.upgrade.checkout_email_hint}</p>
+          <p className={styles.hintText}>{t.upgrade.auto_renew_hint}</p>
         </div>
+
+        {isLoggedIn ? (
+          <div className={styles.refreshRow}>
+            <button
+              type="button"
+              className={styles.refreshBtn}
+              disabled={refreshing}
+              onClick={() => void handleRefreshStatus()}
+            >
+              {refreshing ? '…' : t.upgrade.refresh_status_cta}
+            </button>
+          </div>
+        ) : null}
 
         <div className={styles.actions}>
           <a

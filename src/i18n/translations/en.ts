@@ -98,13 +98,11 @@ export const en: Translations = {
     price: '$8 / month',
     cta: 'Upgrade to Pro',
     dismiss: 'Not now',
-    license_section_title: 'Have a license key?',
-    license_placeholder: 'Paste your Gumroad license key',
-    license_submit: 'Activate Pro',
-    license_empty: 'Please enter your license key',
-    license_need_login: 'Please sign in first, then activate your license.',
-    license_success: 'Pro activated. Enjoy!',
-    license_error_generic: 'Something went wrong. Please try again.',
+    checkout_email_hint:
+      'Use the same email as your GTODrill account at checkout. Pro unlocks automatically within about a minute after payment.',
+    auto_renew_hint:
+      'Subscriptions renew through Gumroad; each successful charge extends your Pro access. No license key needed.',
+    refresh_status_cta: "I've paid — refresh my status",
   },
   pages: {
     rfi_subtitle: 'Practice opening ranges by position.',

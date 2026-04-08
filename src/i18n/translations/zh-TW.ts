@@ -98,13 +98,11 @@ export const zhTW: Translations = {
     price: '$8 / 月',
     cta: '升級 Pro',
     dismiss: '暫時不用',
-    license_section_title: '有序號？',
-    license_placeholder: '貼上 Gumroad 授權序號',
-    license_submit: '啟用 Pro',
-    license_empty: '請輸入授權序號',
-    license_need_login: '請先登入，再啟用序號。',
-    license_success: '已啟用 Pro。',
-    license_error_generic: '發生錯誤，請稍後再試。',
+    checkout_email_hint:
+      '結帳時請使用與本站登入相同的電子郵件。付款成功後約一分鐘內會由系統自動開通 Pro，無需序號。',
+    auto_renew_hint:
+      '訂閱由 Gumroad 自動續訂扣款；每次扣款成功會延長 Pro 到期時間。',
+    refresh_status_cta: '我已付款 — 重新整理狀態',
   },
   pages: {
     rfi_subtitle: '練習各位置的開牌範圍',

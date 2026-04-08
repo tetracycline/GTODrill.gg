@@ -1,14 +1,22 @@
 /**
- * Gumroad Ping／銷售 Webhook：依 email 更新 `profiles`，寫入 `subscription_status` 與 `subscription_expires_at`。
+ * Gumroad Ping／銷售 Webhook：依 `email` 更新 `profiles`（`subscription_status`、`subscription_expires_at`）。
  *
- * 部署：`supabase functions deploy gumroad-webhook`
- * 環境變數（Dashboard → Edge Functions → Secrets 或 CLI secrets）：
- * - `SUPABASE_URL`（通常由平台自動注入）
- * - `SUPABASE_SERVICE_ROLE_KEY`
- * 選用：`GUMROAD_PRODUCT_ID` — 若設定則僅處理該 `product_id`，避免誤升級。
+ * ## 部署
+ * ```bash
+ * supabase functions deploy gumroad-webhook
+ * ```
  *
- * 到期日推導：優先使用 ping 內明確之結束／下次扣款時間欄位；否則以 `sale_timestamp` 為基準，
- * 依 `recurrence` 加算（預設月費 +1 月；無法解析時 +30 天）。退款類欄位為真時改為 `free`。
+ * ## Secrets（CLI 範例）
+ * ```bash
+ * supabase secrets set GUMROAD_PRODUCT_ID=pcjlyd
+ * ```
+ * - **`SUPABASE_URL`、`SUPABASE_SERVICE_ROLE_KEY` 等以 `SUPABASE_` 開頭的變數不可手動 `secrets set`**（CLI 會略過）；由 Supabase 在 Edge Function 執行環境**自動注入**，程式內照常 `Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')` 即可。
+ * - **`GUMROAD_PRODUCT_ID`**：需自行設定；可填 **permalink**（`pcjlyd`）或數字 **product_id**，與 ping 的 `product_permalink` / `product_id` 比對（不分大小寫）。
+ *
+ * ## 到期日
+ * 優先：`subscription_ended_at`、`license_key_expires_at` 及其他常見結束時間欄位 → 再依 `recurrence` 推算；
+ * 若仍無法取得且屬訂閱情境，**fallback：`sale_timestamp`（或現在時間）+ 1 個月**。
+ * 退款／爭議 ping 會將帳號改為 `free`。
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -75,14 +83,17 @@ function parseSaleBaseTime(params: Map<string, string>): Date {
  * @param params - Gumroad 表單鍵值。
  */
 function computeSubscriptionExpiresAt(params: Map<string, string>): string | null {
+  /** Gumroad 文件／社群常見之明確到期欄位（含範例用之 `subscription_ended_at`、`license_key_expires_at`）。 */
   const explicit =
+    getParam(params, 'subscription_ended_at', 'license_key_expires_at') ||
     getParam(
       params,
       'subscription_end_at',
       'subscription_ends_at',
       'current_period_ends_at',
       'current_period_end',
-    ) || getParam(params, 'next_charge_date')
+    ) ||
+    getParam(params, 'next_charge_date')
 
   if (explicit) {
     const d = new Date(explicit)
@@ -139,6 +150,34 @@ function computeSubscriptionExpiresAt(params: Map<string, string>): string | nul
   return e.toISOString()
 }
 
+/**
+ * Ping 是否屬於已設定的商品（`product_id` 或 `product_permalink` 其一相符即可）。
+ *
+ * @param params - 小寫鍵之表單參數。
+ * @param expectedRaw - 環境變數 `GUMROAD_PRODUCT_ID`（可為 id 或 permalink）。
+ */
+function productMatchesFilter(params: Map<string, string>, expectedRaw: string | undefined): boolean {
+  if (!expectedRaw?.trim()) return true
+  const ex = expectedRaw.trim().toLowerCase()
+  const pid = getParam(params, 'product_id')
+  const permalink = getParam(params, 'product_permalink')
+  if (pid && pid.toLowerCase() === ex) return true
+  if (permalink && permalink.toLowerCase() === ex) return true
+  return false
+}
+
+/**
+ * 訂閱型 ping 在無法算出到期日時，自銷售時間起預設續一個月（與月費預設一致）。
+ *
+ * @param params - Gumroad 表單鍵值。
+ */
+function fallbackMonthlyExpiry(params: Map<string, string>): string {
+  const b = parseSaleBaseTime(params)
+  const e = new Date(b)
+  e.setMonth(e.getMonth() + 1)
+  return e.toISOString()
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
@@ -148,12 +187,14 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log('[gumroad-webhook] POST received')
     const formData = await req.formData()
     const params = formDataToParamsLowercase(formData)
 
     const emailRaw = getParam(params, 'email')
     const email = emailRaw.toLowerCase()
     if (!email) {
+      console.warn('[gumroad-webhook] 400: missing email (test ping 常無此欄位)')
       return new Response(JSON.stringify({ error: 'Missing email' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
@@ -161,12 +202,16 @@ Deno.serve(async (req) => {
     }
 
     const saleId = getParam(params, 'sale_id')
-    const productId = getParam(params, 'product_id')
 
-    const expectedProductId = Deno.env.get('GUMROAD_PRODUCT_ID')?.trim()
-    if (expectedProductId && productId && productId !== expectedProductId) {
-      return new Response(JSON.stringify({ error: 'Ignored: product_id mismatch' }), {
-        status: 200,
+    const expectedProduct = Deno.env.get('GUMROAD_PRODUCT_ID')?.trim()
+    if (expectedProduct && !productMatchesFilter(params, expectedProduct)) {
+      console.warn('[gumroad-webhook] 400: product mismatch', {
+        expected: expectedProduct,
+        product_id: getParam(params, 'product_id') || '(empty)',
+        product_permalink: getParam(params, 'product_permalink') || '(empty)',
+      })
+      return new Response(JSON.stringify({ error: 'Product mismatch' }), {
+        status: 400,
         headers: { 'Content-Type': 'application/json' },
       })
     }
@@ -174,6 +219,7 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     if (!supabaseUrl || !serviceKey) {
+      console.error('[gumroad-webhook] 500: missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
       return new Response(JSON.stringify({ error: 'Missing Supabase env' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
@@ -193,7 +239,19 @@ Deno.serve(async (req) => {
       patch.subscription_expires_at = new Date().toISOString()
     } else {
       patch.subscription_status = 'pro'
-      const expiresAt = computeSubscriptionExpiresAt(params)
+      let expiresAt = computeSubscriptionExpiresAt(params)
+      if (expiresAt == null) {
+        const subscriptionLike =
+          !!getParam(params, 'subscription_id') ||
+          ['true', '1', 'yes'].includes(getParam(params, 'is_subscription').toLowerCase()) ||
+          ['true', '1', 'yes'].includes(getParam(params, 'is_recurring_charge').toLowerCase()) ||
+          !!getParam(params, 'recurrence') ||
+          !!getParam(params, 'next_charge_date') ||
+          !!expectedProduct
+        if (subscriptionLike) {
+          expiresAt = fallbackMonthlyExpiry(params)
+        }
+      }
       patch.subscription_expires_at = expiresAt
     }
 
@@ -210,23 +268,29 @@ Deno.serve(async (req) => {
     if (error) throw error
 
     if (!data?.length) {
+      console.warn('[gumroad-webhook] 404: no profiles row for this email')
       return new Response(
         JSON.stringify({
-          message: 'No profile row for this email; user may need to sign up first',
+          error: `Profile not found for email: ${email}`,
           email,
         }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } },
+        { status: 404, headers: { 'Content-Type': 'application/json' } },
       )
     }
 
-    return new Response(JSON.stringify({ message: 'Success', updated: data.length }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    console.log('[gumroad-webhook] 200: update successful', { updated: data.length })
+    return new Response(
+      JSON.stringify({ message: 'Update successful', updated: data.length }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    )
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
+    console.error('gumroad-webhook error:', message)
     return new Response(JSON.stringify({ error: message }), {
-      status: 400,
+      status: 500,
       headers: { 'Content-Type': 'application/json' },
     })
   }

@@ -27,3 +27,6 @@ dist-ssr
 *.sw?
 
 .vercel
+
+# Supabase CLI 本機暫存
+supabase/.temp/

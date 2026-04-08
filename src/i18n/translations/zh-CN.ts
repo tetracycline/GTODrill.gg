@@ -98,13 +98,10 @@ export const zhCN: Translations = {
     price: '$8 / 月',
     cta: '升级 Pro',
     dismiss: '暂时不用',
-    license_section_title: '有许可证？',
-    license_placeholder: '粘贴 Gumroad 许可证密钥',
-    license_submit: '激活 Pro',
-    license_empty: '请输入许可证密钥',
-    license_need_login: '请先登录，再激活许可证。',
-    license_success: '已激活 Pro。',
-    license_error_generic: '出错了，请稍后再试。',
+    checkout_email_hint:
+      '结账时请使用与本站登录相同的邮箱。付款成功后约一分钟内系统自动开通 Pro，无需许可证密钥。',
+    auto_renew_hint: '订阅由 Gumroad 自动续订扣款；每次扣款成功会延长 Pro 到期时间。',
+    refresh_status_cta: '我已付款 — 刷新状态',
   },
   pages: {
     rfi_subtitle: '练习各位置的开牌范围',
