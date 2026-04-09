@@ -70,6 +70,14 @@
   border-radius: 18px 18px 4px 18px;
 }
 
+/** 連結抓取後內容較長時可捲動 */
+.userBubbleScroll {
+  max-height: 14rem;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .assistantBubble {
   background: var(--bg-card);
   color: var(--text-primary);

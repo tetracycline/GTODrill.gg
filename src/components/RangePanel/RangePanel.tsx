@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
-import { getRFIPercent, isRFI } from '../../utils/ranges'
+import { useOpponentType } from '../../contexts/OpponentTypeContext'
+import { getAdjustedRFIPercent, getAdjustedRFIAction } from '../../utils/exploitRanges'
 import { useTranslation } from '../../i18n/LanguageContext'
 import { RangeMatrix, type MatrixFlash } from '../RangeMatrix/RangeMatrix'
 import styles from './RangePanel.module.css'
@@ -24,11 +25,13 @@ export function RangePanel({
   matrixFlash,
 }: RangePanelProps) {
   const { t } = useTranslation()
-  const raisePct = getRFIPercent(matrixPosition)
+  const { opponentType } = useOpponentType()
+  const raisePct = getAdjustedRFIPercent(matrixPosition, opponentType)
 
   const getAction = useCallback(
-    (idx: number) => (isRFI(idx, matrixPosition) ? 'raise' : 'fold'),
-    [matrixPosition],
+    (idx: number) =>
+      getAdjustedRFIAction(idx, matrixPosition, opponentType) === 'raise' ? 'raise' : 'fold',
+    [matrixPosition, opponentType],
   )
 
   return (
@@ -49,10 +52,33 @@ export function RangePanel({
           </div>
           <RangeMatrix
             colorMode="rfi"
+            opponentType={opponentType}
+            matrixPosition={matrixPosition}
             getAction={getAction}
             highlightHandIdx={highlightHandIdx}
             flash={matrixFlash}
           />
+          {opponentType === 'fish' || opponentType === 'nit' ? (
+            <div className={styles.matrixLegend} role="note">
+              {opponentType === 'fish' ? (
+                <>
+                  <div className={styles.legendTitle}>{t.quiz.range_legend_fish_title}</div>
+                  <ul className={styles.legendList}>
+                    <li>{t.quiz.range_legend_fish_amber}</li>
+                    <li>{t.quiz.range_legend_fish_orange}</li>
+                  </ul>
+                </>
+              ) : (
+                <>
+                  <div className={styles.legendTitle}>{t.quiz.range_legend_nit_title}</div>
+                  <ul className={styles.legendList}>
+                    <li>{t.quiz.range_legend_nit_dark}</li>
+                    <li>{t.quiz.range_legend_nit_orange}</li>
+                  </ul>
+                </>
+              )}
+            </div>
+          ) : null}
           <div className={styles.footer}>
             <span className={styles.footerLeft}>
               {t.quiz.based_on_rfi} {matrixPosition} RFI

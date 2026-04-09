@@ -6,6 +6,7 @@ import { PlayingCard } from '../PlayingCard/PlayingCard'
 import { RangeMatrix, type MatrixFlash } from '../RangeMatrix/RangeMatrix'
 import { ShortcutOverlay } from '../ShortcutOverlay/ShortcutOverlay'
 import { StatsBar } from '../StatsBar/StatsBar'
+import { OpponentProfile } from '../OpponentProfile/OpponentProfile'
 import { useTranslation } from '../../i18n/LanguageContext'
 import styles from './PushFoldPage.module.css'
 
@@ -208,6 +209,7 @@ export function PushFoldPage({ quiz }: PushFoldPageProps) {
         </div>
 
         <div className={styles.colRight}>
+          <OpponentProfile />
           <button
             type="button"
             className={`${styles.toggle} ${showRange ? styles.toggleActive : ''}`}

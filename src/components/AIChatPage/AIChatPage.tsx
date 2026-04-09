@@ -1,33 +1,19 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAiDailyQuota } from '../../hooks/useAiDailyQuota'
 import { useTranslation } from '../../i18n/LanguageContext'
 import { getCoachResponse, type CoachMessage } from '../../utils/aiCoach'
+import {
+  formatCoachUserMessageFromFetchedUrl,
+  isSingleLineHttpsUrl,
+  mapHandUrlErrorToLabel,
+  requestHandUrlFetch,
+} from '../../utils/handUrlImportClient'
 import styles from './AIChatPage.module.css'
 
 const STORAGE_KEY = 'ai-coach-chat'
 const MAX_MESSAGES = 20
 const MAX_CONTEXT_MESSAGES = 10
-
-const QUICK_PROMPTS = {
-  'zh-TW': [
-    { label: '翻前範圍?', text: '幫我解釋 BTN vs BB 的翻前基本策略' },
-    { label: '這手牌怎麼打?', text: '幫我分析這手牌：' },
-    { label: '貼手牌分析', text: '我貼一手牌給你，請依照翻前、翻牌、轉牌、河牌分析：\n' },
-    { label: '什麼是GTO?', text: '什麼是 GTO 策略？對低級別有用嗎？' },
-  ],
-  'zh-CN': [
-    { label: '翻前范围?', text: '帮我解释 BTN vs BB 的翻前基本策略' },
-    { label: '这手牌怎么打?', text: '帮我分析这手牌：' },
-    { label: '贴手牌分析', text: '我贴一手牌给你，请按翻前、翻牌、转牌、河牌分析：\n' },
-    { label: '什么是GTO?', text: '什么是 GTO 策略？对低级别有用吗？' },
-  ],
-  en: [
-    { label: 'Preflop range?', text: 'Explain the basic BTN vs BB preflop strategy for 100bb cash games.' },
-    { label: 'How to play this hand?', text: 'Please analyze this hand:' },
-    { label: 'Paste hand history', text: 'Analyze this hand history street by street:\n' },
-    { label: 'What is GTO?', text: 'What is GTO strategy, and how useful is it at NL2-NL25?' },
-  ],
-} as const
+const LONG_USER_BUBBLE = 2500
 
 interface ChatMessage {
   /** 訊息 ID。 */
@@ -50,52 +36,75 @@ export interface AIChatPageProps {
 }
 
 /**
- * AI 教練對話頁：自由提問、手牌文字分析、快捷提問。
+ * AI 教練對話頁：自然語言情境、手牌文字、HTTPS 重播連結（伺服端代抓）。
  */
 export function AIChatPage({ isUnlimited = true, onFreeLimitReached }: AIChatPageProps) {
-  const { lang } = useTranslation()
+  const { t, lang } = useTranslation()
   const { canSend, recordUserMessage, getRemaining, freeLimit } = useAiDailyQuota(isUnlimited)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  const welcomeContent = useMemo(
-    () =>
-      lang === 'en'
-        ? 'Hi! I am your GTO poker coach. Ask me any poker question or paste a hand history for analysis.'
-        : lang === 'zh-CN'
-          ? '你好！我是你的 GTO 扑克教练。你可以问我任何问题，或粘贴手牌记录让我分析。'
-          : '你好！我是你的 GTO 撲克教練。你可以問我任何問題，或貼上手牌記錄讓我分析。',
-    [lang],
+  const createWelcomeMessage = useCallback(
+    (): ChatMessage => ({
+      id: 'welcome',
+      role: 'assistant',
+      content: t.pages.ai_chat_welcome,
+      timestamp: Date.now(),
+    }),
+    [t.pages.ai_chat_welcome],
   )
 
-  const createWelcomeMessage = (): ChatMessage => ({
-    id: 'welcome',
-    role: 'assistant',
-    content: welcomeContent,
-    timestamp: Date.now(),
-  })
-
-  const [messages, setMessages] = useState<ChatMessage[]>([createWelcomeMessage()])
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [createWelcomeMessage()])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [hydrated, setHydrated] = useState(false)
+
+  const quickPrompts = useMemo(
+    () => [
+      { label: t.pages.ai_chat_quick_preflop_label, text: t.pages.ai_chat_quick_preflop_text },
+      { label: t.pages.ai_chat_quick_hand_label, text: t.pages.ai_chat_quick_hand_text },
+      { label: t.pages.ai_chat_quick_paste_label, text: t.pages.ai_chat_quick_paste_text },
+      { label: t.pages.ai_chat_quick_gto_label, text: t.pages.ai_chat_quick_gto_text },
+      { label: t.pages.ai_chat_quick_url_label, text: t.pages.ai_chat_quick_url_text },
+      { label: t.pages.ai_chat_quick_spot_label, text: t.pages.ai_chat_quick_spot_text },
+    ],
+    [t],
+  )
 
   useEffect(() => {
     const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined
     if (nav?.type === 'reload') {
       sessionStorage.removeItem(STORAGE_KEY)
+      setMessages([createWelcomeMessage()])
+      setHydrated(true)
       return
     }
 
     const raw = sessionStorage.getItem(STORAGE_KEY)
-    if (!raw) return
+    if (!raw) {
+      setHydrated(true)
+      return
+    }
     try {
       const parsed = JSON.parse(raw) as ChatMessage[]
-      if (!Array.isArray(parsed) || parsed.length === 0) return
-      setMessages(parsed.slice(-MAX_MESSAGES))
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        setMessages(parsed.slice(-MAX_MESSAGES))
+      }
     } catch {
       sessionStorage.removeItem(STORAGE_KEY)
     }
-  }, [])
+    setHydrated(true)
+  }, [createWelcomeMessage])
+
+  useEffect(() => {
+    if (!hydrated) return
+    setMessages((m) => {
+      if (m.length === 1 && m[0]?.id === 'welcome') {
+        return [createWelcomeMessage()]
+      }
+      return m
+    })
+  }, [lang, hydrated, createWelcomeMessage])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -103,8 +112,10 @@ export function AIChatPage({ isUnlimited = true, onFreeLimitReached }: AIChatPag
 
   useEffect(() => {
     const clean = messages.filter((m) => !m.isLoading).slice(-MAX_MESSAGES)
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(clean))
-  }, [messages])
+    if (hydrated) {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(clean))
+    }
+  }, [messages, hydrated])
 
   /**
    * 依內容自動調整輸入框高度。
@@ -116,8 +127,19 @@ export function AIChatPage({ isUnlimited = true, onFreeLimitReached }: AIChatPag
     el.style.height = `${Math.min(el.scrollHeight, 120)}px`
   }
 
+  const urlErrorLabels = useMemo(
+    () => ({
+      https: t.pages.ai_chat_fetch_https,
+      invalid: t.pages.ai_chat_fetch_invalid,
+      privateHost: t.pages.ai_chat_fetch_private,
+      timeout: t.pages.ai_chat_fetch_timeout,
+      failed: t.pages.ai_chat_fetch_failed,
+    }),
+    [t],
+  )
+
   /**
-   * 傳送訊息並呼叫 AI 教練回覆。
+   * 傳送訊息並呼叫 AI 教練回覆（單行 https 會先經伺服端抓取）。
    */
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return
@@ -126,10 +148,36 @@ export function AIChatPage({ isUnlimited = true, onFreeLimitReached }: AIChatPag
       return
     }
 
+    const trimmed = input.trim()
+    let userPayload = trimmed
+
+    if (isSingleLineHttpsUrl(trimmed)) {
+      setInput('')
+      setIsLoading(true)
+      const fr = await requestHandUrlFetch(trimmed)
+      if (!fr.ok) {
+        setIsLoading(false)
+        const errText = mapHandUrlErrorToLabel(fr.error, urlErrorLabels)
+        const errMsg: ChatMessage = {
+          id: `assistant-fetch-err-${Date.now()}`,
+          role: 'assistant',
+          content: errText,
+          timestamp: Date.now(),
+        }
+        setMessages((prev) => [...prev, errMsg].slice(-MAX_MESSAGES))
+        return
+      }
+      userPayload = formatCoachUserMessageFromFetchedUrl(trimmed, fr.text, lang)
+    } else {
+      setInput('')
+    }
+
+    setIsLoading(true)
+
     const userMsg: ChatMessage = {
       id: `user-${Date.now()}`,
       role: 'user',
-      content: input.trim(),
+      content: userPayload,
       timestamp: Date.now(),
     }
 
@@ -143,8 +191,6 @@ export function AIChatPage({ isUnlimited = true, onFreeLimitReached }: AIChatPag
 
     const nextMessages = [...messages, userMsg, loadingMsg]
     setMessages(nextMessages.slice(-MAX_MESSAGES))
-    setInput('')
-    setIsLoading(true)
     recordUserMessage()
     requestAnimationFrame(autoResize)
 
@@ -162,15 +208,11 @@ export function AIChatPage({ isUnlimited = true, onFreeLimitReached }: AIChatPag
           .slice(-MAX_MESSAGES),
       )
     } catch {
-      const fallback =
-        lang === 'en'
-          ? 'Sorry, AI coach is temporarily unavailable. Please try again later.'
-          : lang === 'zh-CN'
-            ? '抱歉，AI 教练暂时无法回应，请稍后再试。'
-            : '抱歉，AI 教練暫時無法回應，請稍後再試。'
       setMessages((prev) =>
         prev
-          .map((m) => (m.isLoading ? { ...m, content: fallback, isLoading: false } : m))
+          .map((m) =>
+            m.isLoading ? { ...m, content: t.pages.ai_chat_unavailable, isLoading: false } : m,
+          )
           .slice(-MAX_MESSAGES),
       )
     } finally {
@@ -187,22 +229,12 @@ export function AIChatPage({ isUnlimited = true, onFreeLimitReached }: AIChatPag
     sessionStorage.removeItem(STORAGE_KEY)
   }
 
-  const placeholder =
-    lang === 'en'
-      ? 'Ask any poker question, or paste a hand history...'
-      : lang === 'zh-CN'
-        ? '问任何扑克问题，或粘贴手牌记录...'
-        : '問任何撲克問題，或貼上手牌記錄...'
-
-  const clearLabel = lang === 'en' ? 'Clear' : lang === 'zh-CN' ? '清除对话' : '清除對話'
-  const sendLabel = lang === 'en' ? '↵' : '↵'
-
   return (
     <div className={styles.container}>
       <header className={styles.header}>
-        <h1 className={styles.title}>AI 教練</h1>
+        <h1 className={styles.title}>{t.nav.ai_coach}</h1>
         <button type="button" className={styles.clearBtn} onClick={clearConversation}>
-          {clearLabel}
+          {t.pages.ai_chat_clear}
         </button>
       </header>
 
@@ -217,9 +249,9 @@ export function AIChatPage({ isUnlimited = true, onFreeLimitReached }: AIChatPag
             <div
               className={`${styles.bubble} ${
                 message.role === 'user' ? styles.userBubble : styles.assistantBubble
-              }`}
+              } ${message.role === 'user' && message.content.length > LONG_USER_BUBBLE ? styles.userBubbleScroll : ''}`}
             >
-              {message.role === 'assistant' ? <div className={styles.avatarLine}>🤖 AI Coach</div> : null}
+              {message.role === 'assistant' ? <div className={styles.avatarLine}>🤖 {t.nav.ai_coach}</div> : null}
               {message.isLoading ? (
                 <div className={styles.loadingDots} aria-label="loading">
                   <span />
@@ -238,7 +270,7 @@ export function AIChatPage({ isUnlimited = true, onFreeLimitReached }: AIChatPag
 
       <div className={styles.inputArea}>
         <div className={styles.quickPrompts}>
-          {QUICK_PROMPTS[lang].map((prompt) => (
+          {quickPrompts.map((prompt) => (
             <button
               key={prompt.label}
               type="button"
@@ -261,7 +293,7 @@ export function AIChatPage({ isUnlimited = true, onFreeLimitReached }: AIChatPag
             ref={textareaRef}
             value={input}
             className={styles.textarea}
-            placeholder={placeholder}
+            placeholder={t.pages.ai_chat_placeholder}
             onChange={(e) => {
               setInput(e.target.value)
               requestAnimationFrame(autoResize)
@@ -279,19 +311,17 @@ export function AIChatPage({ isUnlimited = true, onFreeLimitReached }: AIChatPag
             disabled={isLoading || !input.trim()}
             onClick={() => void sendMessage()}
           >
-            {sendLabel}
+            ↵
           </button>
         </div>
         <div className={styles.metaRow}>
-          <span>{lang === 'en' ? 'Enter to send, Shift+Enter newline' : 'Enter 送出，Shift+Enter 換行'}</span>
+          <span>{t.pages.ai_chat_enter_hint}</span>
           <span>
             {!isUnlimited ? (
               <span className={styles.quotaHint}>
-                {lang === 'en'
-                  ? `${getRemaining()} / ${freeLimit} free today`
-                  : lang === 'zh-CN'
-                    ? `今日免費 ${getRemaining()} / ${freeLimit} 則`
-                    : `今日免費 ${getRemaining()} / ${freeLimit} 則`}
+                {t.pages.ai_chat_quota_fmt
+                  .replace('{rem}', String(getRemaining()))
+                  .replace('{limit}', String(freeLimit))}
               </span>
             ) : null}
             {input.length > 500 ? `${input.length}` : ''}

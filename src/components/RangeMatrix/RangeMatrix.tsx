@@ -1,5 +1,12 @@
 import { Fragment, useState } from 'react'
-import { RANKS, handIndex, handName } from '../../utils/ranges'
+import type { OpponentType } from '../../types/opponentType'
+import {
+  RANKS,
+  getRFIMatrixCellKind,
+  handIndex,
+  handName,
+  type RfiMatrixCellKind,
+} from '../../utils/ranges'
 import styles from './RangeMatrix.module.css'
 
 export type MatrixFlash = 'correct' | 'wrong' | null
@@ -16,6 +23,19 @@ export interface RangeMatrixProps {
   flash: MatrixFlash
   /** 圖表模式：hover 顯示 tooltip */
   showTooltip?: boolean
+  /**
+   * RFI 模式：與 {@link matrixPosition} 一併傳入時，依桌型顯示 extra／removed 色塊。
+   */
+  opponentType?: OpponentType
+  /** RFI 模式：練習位置（UTG…SB） */
+  matrixPosition?: string
+}
+
+function resolveRfiTone(kind: RfiMatrixCellKind): string {
+  if (kind === 'extra') return styles.cellExtra
+  if (kind === 'removed') return styles.cellRemoved
+  if (kind === 'raise') return styles.cellRaise
+  return styles.cellFoldDark
 }
 
 function resolveToneClass(colorMode: ColorMode, action: string): string {
@@ -53,6 +73,17 @@ function defaultTooltipLabel(
 }
 
 /**
+ * @param kind - RFI 桌型著色類別
+ * @param name - 手牌標籤
+ */
+function rfiTooltipWithKind(kind: RfiMatrixCellKind, name: string): string {
+  if (kind === 'extra') return `${name} — + vs fish (not GTO open)`
+  if (kind === 'removed') return `${name} — fold vs nit (removed from GTO open)`
+  if (kind === 'raise') return `${name} — Raise`
+  return `${name} — Fold`
+}
+
+/**
  * 13×13 範圍矩陣（多模式著色 + 可選 tooltip）。
  */
 export function RangeMatrix({
@@ -61,6 +92,8 @@ export function RangeMatrix({
   highlightHandIdx,
   flash,
   showTooltip = false,
+  opponentType,
+  matrixPosition,
 }: RangeMatrixProps) {
   const [tip, setTip] = useState<{ x: number; y: number; text: string } | null>(null)
   const hi = highlightHandIdx >= 0 && highlightHandIdx <= 168
@@ -102,7 +135,12 @@ export function RangeMatrix({
             {RANKS.map((_, c) => {
               const idx = handIndex(r, c)
               const action = getAction(idx)
-              const tone = resolveToneClass(colorMode, action)
+              const rfiKind =
+                colorMode === 'rfi' && matrixPosition
+                  ? getRFIMatrixCellKind(idx, matrixPosition, opponentType ?? 'gto')
+                  : null
+              const tone =
+                rfiKind != null ? resolveRfiTone(rfiKind) : resolveToneClass(colorMode, action)
               const isHi = r === hr && c === hc
               const flashClass =
                 isHi && flash === 'correct'
@@ -123,7 +161,10 @@ export function RangeMatrix({
                           setTip({
                             x: e.clientX,
                             y: e.clientY,
-                            text: defaultTooltipLabel(colorMode, nm, action),
+                            text:
+                              colorMode === 'rfi' && rfiKind != null
+                                ? rfiTooltipWithKind(rfiKind, nm)
+                                : defaultTooltipLabel(colorMode, nm, action),
                           })
                       : undefined
                   }
@@ -136,7 +177,10 @@ export function RangeMatrix({
                               : {
                                   x: e.clientX,
                                   y: e.clientY,
-                                  text: defaultTooltipLabel(colorMode, nm, action),
+                                  text:
+                                    colorMode === 'rfi' && rfiKind != null
+                                      ? rfiTooltipWithKind(rfiKind, nm)
+                                      : defaultTooltipLabel(colorMode, nm, action),
                                 },
                           )
                       : undefined

@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { hasActiveProSubscription, supabase, type Profile } from '../lib/supabase'
+import { getAuthRedirectOrigin } from '../utils/authRedirect'
 
 export interface AuthContextValue {
   user: User | null
@@ -15,7 +16,8 @@ export interface AuthContextValue {
   signInWithEmail: (email: string, password: string) => Promise<{ error: string | null }>
   signUpWithEmail: (email: string, password: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
-  refreshProfile: () => Promise<void>
+  /** 重新抓取 `profiles`；回傳最新列（供升級彈窗等立即判斷是否已 Pro）。 */
+  refreshProfile: () => Promise<Profile | null>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -30,21 +32,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /** 未設定 Supabase 時不需等待連線，直接結束載入。 */
   const [loading, setLoading] = useState(() => Boolean(supabase))
 
-  const fetchProfile = useCallback(async (userId: string) => {
+  const fetchProfile = useCallback(async (userId: string): Promise<Profile | null> => {
     if (!supabase) {
       setProfile(null)
-      return
+      return null
     }
     const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single()
     if (error || !data) {
       setProfile(null)
-      return
+      return null
     }
-    setProfile(data as Profile)
+    const row = data as Profile
+    setProfile(row)
+    return row
   }, [])
 
   const refreshProfile = useCallback(async () => {
-    if (user?.id) await fetchProfile(user.id)
+    if (!user?.id) return null
+    return fetchProfile(user.id)
   }, [user, fetchProfile])
 
   useEffect(() => {
@@ -109,10 +114,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         '未設定 Supabase：請在專案根目錄建立 .env，並設定 VITE_SUPABASE_URL 與 VITE_SUPABASE_ANON_KEY',
       )
     }
+    const base = getAuthRedirectOrigin()
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/`,
+        redirectTo: `${base}/`,
       },
     })
   }, [])
@@ -129,10 +135,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabase) {
       return { error: '未設定 Supabase 環境變數，無法註冊。' }
     }
+    const base = getAuthRedirectOrigin()
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: `${window.location.origin}/` },
+      options: { emailRedirectTo: `${base}/` },
     })
     return { error: error?.message ?? null }
   }, [])

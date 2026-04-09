@@ -25,23 +25,6 @@ export const WEAK_SPOT_TRACKED_MODES = [
 export type WeakSpotTrackedMode = (typeof WEAK_SPOT_TRACKED_MODES)[number]
 
 /**
- * UI 顯示用模式中文名稱。
- */
-export function weakSpotModeLabel(mode: string): string {
-  const map: Record<string, string> = {
-    rfi: 'RFI 訓練',
-    vsrfi: 'VS RFI',
-    bvb: 'BvB 訓練',
-    vs3bet: 'VS 3BET',
-    vs4bet: 'VS 4BET',
-    cold4bet: 'Cold 4-Bet',
-    pushfold: 'Push Fold',
-    'postflop-cbet': '翻後 C-Bet',
-  }
-  return map[mode] ?? mode
-}
-
-/**
  * 手牌索引轉矩陣名稱（如 AKs）。
  */
 export function weakSpotHandLabel(handIdx: number): string {

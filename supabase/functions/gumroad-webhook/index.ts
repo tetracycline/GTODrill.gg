@@ -8,10 +8,10 @@
  *
  * ## Secrets（CLI 範例）
  * ```bash
- * supabase secrets set GUMROAD_PRODUCT_ID=pcjlyd
+ * supabase secrets set GUMROAD_PRODUCT_ID=pcjlyd,0_RBqgEzaQqPnxB4h5l8KQ==
  * ```
  * - **`SUPABASE_URL`、`SUPABASE_SERVICE_ROLE_KEY` 等以 `SUPABASE_` 開頭的變數不可手動 `secrets set`**（CLI 會略過）；由 Supabase 在 Edge Function 執行環境**自動注入**，程式內照常 `Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')` 即可。
- * - **`GUMROAD_PRODUCT_ID`**：需自行設定；可填 **permalink**（`pcjlyd`）或數字 **product_id**，與 ping 的 `product_permalink` / `product_id` 比對（不分大小寫）。
+ * - **`GUMROAD_PRODUCT_ID`**：可填 **permalink**（`pcjlyd`）、Gumroad ping 內的 **`product_id` 字串**（常為 `0_xxxxx==` 這類），或**逗號分隔多個值**（任一命中即通過）。Ping 裡 `product_id` 與網址 permalink 通常不同，需擇一或兩者都設。
  *
  * ## 到期日
  * 優先：`subscription_ended_at`、`license_key_expires_at` 及其他常見結束時間欄位 → 再依 `recurrence` 推算；
@@ -19,6 +19,44 @@
  * 退款／爭議 ping 會將帳號改為 `free`。
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+/**
+ * 將 Supabase／PostgREST 等非 `Error` 實例之 thrown 值轉成可讀字串（避免 log 出現 `[object Object]`）。
+ *
+ * @param err - `catch` 區塊捕獲之值。
+ */
+function formatUnknownError(err: unknown): string {
+  if (err instanceof Error) return err.message
+  if (typeof err === 'object' && err !== null) {
+    const o = err as Record<string, unknown>
+    const parts: string[] = []
+    if (typeof o.message === 'string') parts.push(o.message)
+    if (typeof o.code === 'string') parts.push(`code=${o.code}`)
+    if (typeof o.details === 'string') parts.push(o.details)
+    if (typeof o.hint === 'string') parts.push(`hint=${o.hint}`)
+    if (parts.length > 0) return parts.join(' | ')
+    try {
+      return JSON.stringify(o)
+    } catch {
+      return String(err)
+    }
+  }
+  return String(err)
+}
+
+/**
+ * 將 `.rpc` 回傳之 UUID 正規化為字串（純量或包在物件時皆處理）。
+ *
+ * @param data - `rpc` 的 `data`。
+ */
+function coerceRpcUuid(data: unknown): string | null {
+  if (typeof data === 'string' && data.length > 0) return data
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    const v = (data as Record<string, unknown>).gumroad_lookup_user_id_by_email
+    if (typeof v === 'string' && v.length > 0) return v
+  }
+  return null
+}
 
 /**
  * 將 `FormData` 鍵名轉為小寫，便於對齊 Gumroad 欄位。
@@ -151,19 +189,47 @@ function computeSubscriptionExpiresAt(params: Map<string, string>): string | nul
 }
 
 /**
- * Ping 是否屬於已設定的商品（`product_id` 或 `product_permalink` 其一相符即可）。
+ * 從 ping 取出可能代表「同一個商品」的識別字串（Gumroad 欄位依版本可能不同）。
  *
  * @param params - 小寫鍵之表單參數。
- * @param expectedRaw - 環境變數 `GUMROAD_PRODUCT_ID`（可為 id 或 permalink）。
+ */
+function gumroadProductCandidates(params: Map<string, string>): string[] {
+  const keys = [
+    'product_id',
+    'product_permalink',
+    'permalink',
+    'short_product_id',
+    'product_unique_id',
+  ] as const
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const k of keys) {
+    const v = getParam(params, k)
+    if (!v) continue
+    const low = v.toLowerCase()
+    if (seen.has(low)) continue
+    seen.add(low)
+    out.push(low)
+  }
+  return out
+}
+
+/**
+ * Ping 是否屬於已設定的商品。`GUMROAD_PRODUCT_ID` 可為逗號分隔之多個值（permalink、`product_id` 等），
+ * 與 ping 內任一候選欄位相符即通過。
+ *
+ * @param params - 小寫鍵之表單參數。
+ * @param expectedRaw - 環境變數 `GUMROAD_PRODUCT_ID`。
  */
 function productMatchesFilter(params: Map<string, string>, expectedRaw: string | undefined): boolean {
   if (!expectedRaw?.trim()) return true
-  const ex = expectedRaw.trim().toLowerCase()
-  const pid = getParam(params, 'product_id')
-  const permalink = getParam(params, 'product_permalink')
-  if (pid && pid.toLowerCase() === ex) return true
-  if (permalink && permalink.toLowerCase() === ex) return true
-  return false
+  const allowed = expectedRaw
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean)
+  const candidates = gumroadProductCandidates(params)
+  if (candidates.length === 0) return false
+  return allowed.some((ex) => candidates.some((c) => c === ex))
 }
 
 /**
@@ -191,14 +257,21 @@ Deno.serve(async (req) => {
     const formData = await req.formData()
     const params = formDataToParamsLowercase(formData)
 
-    const emailRaw = getParam(params, 'email')
+    console.log('[gumroad-webhook] form keys:', [...params.keys()].sort().join(',') || '(empty)')
+
+    const emailRaw = getParam(params, 'email', 'purchaser_email', 'buyer_email')
     const email = emailRaw.toLowerCase()
     if (!email) {
-      console.warn('[gumroad-webhook] 400: missing email (test ping 常無此欄位)')
-      return new Response(JSON.stringify({ error: 'Missing email' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      })
+      /** 測試 ping 常無 `email`；回 200 避免儀表板全紅，Gumroad 亦視為已送達。 */
+      console.warn('[gumroad-webhook] skip: no email (Gumroad test ping?)')
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          skipped: 'missing_email',
+          hint: 'Real purchases include email; test pings often do not.',
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      )
     }
 
     const saleId = getParam(params, 'sale_id')
@@ -207,8 +280,8 @@ Deno.serve(async (req) => {
     if (expectedProduct && !productMatchesFilter(params, expectedProduct)) {
       console.warn('[gumroad-webhook] 400: product mismatch', {
         expected: expectedProduct,
-        product_id: getParam(params, 'product_id') || '(empty)',
-        product_permalink: getParam(params, 'product_permalink') || '(empty)',
+        candidates_from_ping: gumroadProductCandidates(params),
+        hint: 'Set GUMROAD_PRODUCT_ID to ping product_id OR permalink, comma-separated for both.',
       })
       return new Response(JSON.stringify({ error: 'Product mismatch' }), {
         status: 400,
@@ -259,13 +332,38 @@ Deno.serve(async (req) => {
       patch.gumroad_sale_id = saleId
     }
 
-    const { data, error } = await supabaseAdmin
+    let { data, error } = await supabaseAdmin
       .from('profiles')
       .update(patch)
       .eq('email', email)
       .select('id')
 
     if (error) throw error
+
+    /** `profiles.email` 常為空或與 auth 不同步時，依 `auth.users` 的 email 解析 id 再更新並回填 email。 */
+    if (!data?.length) {
+      console.log('[gumroad-webhook] no row for profiles.email, lookup auth.users by email')
+      const { data: userId, error: rpcErr } = await supabaseAdmin.rpc('gumroad_lookup_user_id_by_email', {
+        p_email: email,
+      })
+      if (rpcErr) {
+        console.warn('[gumroad-webhook] rpc error:', formatUnknownError(rpcErr))
+      }
+      const uid = !rpcErr ? coerceRpcUuid(userId) : null
+      if (uid) {
+        const patchWithEmail = { ...patch, email }
+        const res2 = await supabaseAdmin
+          .from('profiles')
+          .update(patchWithEmail)
+          .eq('id', uid)
+          .select('id')
+        if (res2.error) throw res2.error
+        data = res2.data
+        if (data?.length) {
+          console.log('[gumroad-webhook] updated by user id from auth lookup')
+        }
+      }
+    }
 
     if (!data?.length) {
       console.warn('[gumroad-webhook] 404: no profiles row for this email')
@@ -287,8 +385,8 @@ Deno.serve(async (req) => {
       },
     )
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    console.error('gumroad-webhook error:', message)
+    const message = formatUnknownError(err)
+    console.error('[gumroad-webhook] 500:', message)
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },

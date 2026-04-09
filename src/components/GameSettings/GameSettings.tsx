@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
+import { useAuth } from '../../contexts/AuthContext'
 import { useTranslation } from '../../i18n/LanguageContext'
 import type { Language } from '../../i18n/types'
+import { submitBugReport } from '../../utils/bugReportClient'
 import styles from './GameSettings.module.css'
 
 const THEME_KEY = 'gto-theme'
@@ -26,11 +28,15 @@ export function GameSettings({
   onDailyTargetChange,
 }: GameSettingsProps) {
   const { t, lang, setLang } = useTranslation()
+  const { session } = useAuth()
   const [theme, setThemeState] = useState<'dark' | 'light'>(() =>
     typeof localStorage !== 'undefined' && localStorage.getItem(THEME_KEY) === 'light'
       ? 'light'
       : 'dark',
   )
+  const [bugText, setBugText] = useState('')
+  const [bugSubmitting, setBugSubmitting] = useState(false)
+  const [bugStatus, setBugStatus] = useState<string | null>(null)
 
   /**
    * @param next - 主題
@@ -76,6 +82,30 @@ export function GameSettings({
         {label}
       </button>
     )
+  }
+
+  /**
+   * 送出錯誤回報（匿名顯示，不公開 email）。
+   */
+  async function submitBug() {
+    const message = bugText.trim()
+    if (message.length < 8 || bugSubmitting) return
+    setBugSubmitting(true)
+    setBugStatus(null)
+    try {
+      await submitBugReport({
+        message,
+        language: lang,
+        pageUrl: typeof window !== 'undefined' ? window.location.href : '',
+        accessToken: session?.access_token,
+      })
+      setBugText('')
+      setBugStatus(t.settings.bug_report_success)
+    } catch {
+      setBugStatus(t.settings.bug_report_error)
+    } finally {
+      setBugSubmitting(false)
+    }
   }
 
   return (
@@ -150,24 +180,25 @@ export function GameSettings({
           </section>
 
           <section className={styles.section}>
-            <h3 className={styles.sectionTitle}>{t.settings.rake_dialog_title}</h3>
-            <h4 className={styles.subHeading}>{t.settings.rake_sec1_title}</h4>
-            <p className={styles.sectionText}>{t.settings.rake_sec1_p1}</p>
-            <p className={styles.sectionText}>{t.settings.rake_sec1_p2}</p>
-            <h4 className={styles.subHeading}>{t.settings.rake_sec2_title}</h4>
-            <p className={styles.sectionText}>{t.settings.rake_sec2_p1}</p>
-            <p className={styles.sectionText}>{t.settings.rake_sec2_p2}</p>
-            <p className={styles.sectionText}>{t.settings.rake_sec2_p3}</p>
-            <h4 className={styles.subHeading}>{t.settings.rake_sec3_title}</h4>
-            <ul className={styles.list}>
-              <li>{t.settings.rake_sec3_li1}</li>
-              <li>{t.settings.rake_sec3_li2}</li>
-              <li>{t.settings.rake_sec3_li3}</li>
-              <li>{t.settings.rake_sec3_li4}</li>
-            </ul>
-            <div className={styles.sourceBlock}>
-              <p className={styles.sourceLabel}>{t.settings.rake_source_label}</p>
-              <p className={styles.sourceQuote}>{t.settings.rake_source_quote}</p>
+            <h3 className={styles.sectionTitle}>{t.settings.bug_report_title}</h3>
+            <p className={styles.sectionText}>{t.settings.bug_report_desc}</p>
+            <textarea
+              className={styles.reportTextarea}
+              value={bugText}
+              maxLength={4000}
+              placeholder={t.settings.bug_report_placeholder}
+              onChange={(e) => setBugText(e.target.value)}
+            />
+            <div className={styles.reportRow}>
+              <button
+                type="button"
+                className={styles.reportBtn}
+                disabled={bugSubmitting || bugText.trim().length < 8}
+                onClick={() => void submitBug()}
+              >
+                {bugSubmitting ? t.settings.bug_report_submitting : t.settings.bug_report_submit}
+              </button>
+              {bugStatus ? <span className={styles.reportStatus}>{bugStatus}</span> : null}
             </div>
           </section>
         </div>

@@ -1,6 +1,9 @@
-import { handName, isRFI } from '../../utils/ranges'
+import { useOpponentType } from '../../contexts/OpponentTypeContext'
 import type { CurrentCombo, QuizPhase } from '../../hooks/useQuiz'
 import { useTranslation } from '../../i18n/LanguageContext'
+import type { OpponentType } from '../../types/opponentType'
+import { getAdjustedRFIAction } from '../../utils/exploitRanges'
+import { handName, isRFI } from '../../utils/ranges'
 import { PlayingCard } from '../PlayingCard/PlayingCard'
 import styles from './HandCard.module.css'
 
@@ -11,6 +14,36 @@ import styles from './HandCard.module.css'
 function actionLabelShort(label: string): string {
   const i = label.indexOf(' (')
   return i >= 0 ? label.slice(0, i) : label
+}
+
+/**
+ * @param type - 桌型 id
+ * @param tr - 翻譯 `opponent_type` 區塊
+ */
+function opponentTypeShortLabel(
+  type: OpponentType,
+  tr: {
+    gto: string
+    fish: string
+    nit: string
+    aggro: string
+    reg: string
+  },
+): string {
+  switch (type) {
+    case 'gto':
+      return tr.gto
+    case 'fish':
+      return tr.fish
+    case 'nit':
+      return tr.nit
+    case 'aggro':
+      return tr.aggro
+    case 'reg':
+      return tr.reg
+    default:
+      return tr.gto
+  }
 }
 
 export interface HandCardProps {
@@ -36,15 +69,22 @@ export function HandCard({
   onFold,
 }: HandCardProps) {
   const { t } = useTranslation()
+  const { opponentType } = useOpponentType()
   const r = Math.floor(handIdx / 13)
   const c = handIdx % 13
   const name = handName(r, c)
-  const gtoRaise = isRFI(handIdx, positionLabel)
-  const gtoLabel = actionLabelShort(gtoRaise ? t.actions.raise : t.actions.fold)
+  const solverRaise = isRFI(handIdx, positionLabel)
+  const expectedRaise = getAdjustedRFIAction(handIdx, positionLabel, opponentType) === 'raise'
+  const solverLabel = actionLabelShort(solverRaise ? t.actions.raise : t.actions.fold)
+  const expectedLabel = actionLabelShort(expectedRaise ? t.actions.raise : t.actions.fold)
+  const tableDiffers = expectedRaise !== solverRaise
 
   return (
     <div className={styles.card}>
       <div className={styles.badge}>{positionLabel}</div>
+      <div className={styles.opponentBadge}>
+        {t.opponent_type.playing_vs}: {opponentTypeShortLabel(opponentType, t.opponent_type)}
+      </div>
 
       <div className={styles.cardsRow}>
         <div className={styles.cardOverlap}>
@@ -72,13 +112,46 @@ export function HandCard({
         >
           {lastCorrect ? (
             <>
-              ✓ {t.quiz.correct} {t.quiz.gto_colon} {gtoLabel}
+              ✓ {t.quiz.correct}{' '}
+              {tableDiffers ? (
+                <>
+                  {t.opponent_type.expected_colon}
+                  {expectedLabel} · {t.opponent_type.solver_gto_colon}
+                  {solverLabel}
+                </>
+              ) : (
+                <>
+                  {t.quiz.gto_colon} {solverLabel}
+                </>
+              )}
             </>
           ) : (
             <>
-              ✗ {t.quiz.wrong} {t.quiz.gto_colon} {gtoLabel}
+              ✗ {t.quiz.wrong}{' '}
+              {tableDiffers ? (
+                <>
+                  {t.opponent_type.expected_colon}
+                  {expectedLabel} · {t.opponent_type.solver_gto_colon}
+                  {solverLabel}
+                </>
+              ) : (
+                <>
+                  {t.quiz.gto_colon} {solverLabel}
+                </>
+              )}
             </>
           )}
+          {tableDiffers ? (
+            <div className={styles.overrideDetail}>
+              <p className={styles.overrideDetailLine}>
+                {expectedRaise && !solverRaise ? t.quiz.rfi_explain_fish_adjust : null}
+                {!expectedRaise && solverRaise ? t.quiz.rfi_explain_nit_adjust : null}
+              </p>
+              <p className={styles.overrideDetailLine}>
+                {t.quiz.rfi_explain_gto_answer.replace('{action}', solverLabel)}
+              </p>
+            </div>
+          ) : null}
         </div>
       )}
     </div>

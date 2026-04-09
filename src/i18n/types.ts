@@ -20,7 +20,6 @@ export interface Translations {
     push_fold: string
     push_fold_chart: string
     weak_spots: string
-    hand_history: string
     ai_qa: string
     admin: string
   }
@@ -54,6 +53,19 @@ export interface Translations {
     facing: string
     explanation: string
     source: string
+    /** RFI 矩陣：對魚桌圖例標題 */
+    range_legend_fish_title: string
+    range_legend_fish_amber: string
+    range_legend_fish_orange: string
+    /** RFI 矩陣：對 Nit 圖例 */
+    range_legend_nit_title: string
+    range_legend_nit_dark: string
+    range_legend_nit_orange: string
+    /** RFI 結果：桌型與 GTO 不同時之說明 */
+    rfi_explain_fish_adjust: string
+    rfi_explain_nit_adjust: string
+    /** `{action}` 為 GTO 動作短標籤 */
+    rfi_explain_gto_answer: string
   }
   app: {
     open_menu: string
@@ -88,6 +100,8 @@ export interface Translations {
     sidebar_promo_headline: string
     /** 側邊欄未登入時：同步裝置說明。 */
     sidebar_promo_sub: string
+    /** 已登入：開啟 Gumroad 訂閱管理頁。 */
+    manage_subscription: string
   }
   /** Pro 升級彈窗（Gumroad 等）。 */
   upgrade: {
@@ -95,7 +109,6 @@ export interface Translations {
     lead: string
     feature_bvb_line: string
     feature_ai: string
-    feature_hand_history: string
     feature_weak_sync: string
     price: string
     cta: string
@@ -106,6 +119,11 @@ export interface Translations {
     auto_renew_hint: string
     /** 已登入：付款後手動重新載入訂閱狀態。 */
     refresh_status_cta: string
+    /** 顯示目前登入信箱，方便與 Gumroad 結帳比對；`{email}` 為占位。 */
+    refresh_account_email_fmt: string
+    refresh_result_pro: string
+    refresh_result_free: string
+    refresh_result_no_profile: string
   }
   pages: {
     rfi_subtitle: string
@@ -146,6 +164,7 @@ export interface Translations {
     postflop_next_hint: string
     postflop_next_btn: string
     postflop_placeholder: string
+    postflop_vs: string
     weakspots_subtitle: string
     weakspots_empty: string
     weakspots_review: string
@@ -165,6 +184,25 @@ export interface Translations {
     wrongbook_toast_fail: string
     wrongbook_confirm_clear: string
     wrongbook_toast_cleared: string
+    /** 錯題本／弱點：模式顯示名 */
+    mode_display_rfi: string
+    mode_display_vsrfi: string
+    mode_display_bvb: string
+    mode_display_vs3bet: string
+    mode_display_vs4bet: string
+    mode_display_cold4bet: string
+    mode_display_pushfold: string
+    mode_display_postflop_cbet: string
+    wrongbook_you_colon: string
+    wrongbook_gto_colon: string
+    /** RFI 錯題：依桌型判定之正解前綴 */
+    wrongbook_table_expected_colon: string
+    /** RFI 錯題：純 solver 線前綴 */
+    wrongbook_pure_gto_colon: string
+    wrongbook_vsrfi_ctx: string
+    wrongbook_spot_bb_defend: string
+    wrongbook_spot_sb_vs_3bet: string
+    wrongbook_vs3_ctx: string
     combo_settings: string
     villain_open: string
     hero_position: string
@@ -188,6 +226,30 @@ export interface Translations {
     cold_settings_title: string
     cold_footer_left: string
     push_stat_pct_fmt: string
+    /** AI 教練頁 */
+    ai_chat_welcome: string
+    ai_chat_placeholder: string
+    ai_chat_clear: string
+    ai_chat_enter_hint: string
+    ai_chat_quota_fmt: string
+    ai_chat_fetch_https: string
+    ai_chat_fetch_invalid: string
+    ai_chat_fetch_private: string
+    ai_chat_fetch_timeout: string
+    ai_chat_fetch_failed: string
+    ai_chat_unavailable: string
+    ai_chat_quick_preflop_label: string
+    ai_chat_quick_preflop_text: string
+    ai_chat_quick_hand_label: string
+    ai_chat_quick_hand_text: string
+    ai_chat_quick_paste_label: string
+    ai_chat_quick_paste_text: string
+    ai_chat_quick_gto_label: string
+    ai_chat_quick_gto_text: string
+    ai_chat_quick_url_label: string
+    ai_chat_quick_url_text: string
+    ai_chat_quick_spot_label: string
+    ai_chat_quick_spot_text: string
   }
   actions: {
     raise: string
@@ -208,36 +270,47 @@ export interface Translations {
     target: string
     hands_unit: string
   }
-  hand_history: {
+  /** 對手 HUD／剝削建議浮動面板 */
+  opponent_profile: {
+    toggle_btn: string
     title: string
-    subtitle: string
-    upload_prompt: string
-    /** 多行輸入框提示（可直接貼上手牌文字）。 */
-    composer_placeholder: string
-    /** 快捷鍵說明（Enter 送出、Shift+Enter 換行）。 */
-    composer_hint: string
-    upload_btn: string
-    analyzing: string
-    parsing: string
-    results_title: string
-    hands_analyzed: string
-    leaks_found: string
-    no_leaks: string
-    preflop_section: string
-    postflop_section: string
-    upload_another: string
-    supported_formats: string
-    example_leak: string
-    error_no_hands: string
-    error_file_size: string
-    error_parse: string
-    normal: string
-    high: string
-    medium: string
-    low: string
-    practice_link: string
-    strengths_title: string
-    summary_title: string
+    optional: string
+    vpip: string
+    pfr: string
+    threebet: string
+    fold_to_cbet: string
+    analyze: string
+    clear: string
+    presets: string
+    fish: string
+    reg: string
+    shark: string
+    nit: string
+    adjustments: string
+    no_adjustments: string
+    hint_before_analyze: string
+    severity_high: string
+    severity_medium: string
+    severity_low: string
+  }
+  /** 全域桌型（測驗預期答案） */
+  opponent_type: {
+    label: string
+    gto: string
+    fish: string
+    nit: string
+    aggro: string
+    reg: string
+    /** 徽章：Playing vs … */
+    playing_vs: string
+    /**
+     * 翻後覆寫說明；`{type}` `{answer}` `{gto_answer}` 為占位。
+     */
+    override_note: string
+    /** RFI 結果：依桌型預期動作前綴 */
+    expected_colon: string
+    /** RFI 結果：與純 GTO 不同時顯示 */
+    solver_gto_colon: string
   }
   settings: {
     title: string
@@ -263,5 +336,13 @@ export interface Translations {
     rake_sec3_li4: string
     rake_source_label: string
     rake_source_quote: string
+    bug_report_title: string
+    bug_report_desc: string
+    bug_report_placeholder: string
+    bug_report_submit: string
+    bug_report_submitting: string
+    bug_report_success: string
+    bug_report_error: string
+    bug_report_privacy: string
   }
 }

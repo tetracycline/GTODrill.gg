@@ -12,6 +12,7 @@ import { PlayingCard } from '../PlayingCard/PlayingCard'
 import { RangeMatrix, type MatrixFlash } from '../RangeMatrix/RangeMatrix'
 import { ShortcutOverlay } from '../ShortcutOverlay/ShortcutOverlay'
 import { StatsBar } from '../StatsBar/StatsBar'
+import { OpponentProfile } from '../OpponentProfile/OpponentProfile'
 import type { Translations } from '../../i18n/types'
 import { useTranslation } from '../../i18n/LanguageContext'
 import styles from './Vs3betPage.module.css'
@@ -214,6 +215,7 @@ export function Vs3betPage({ quiz }: Vs3betPageProps) {
         </div>
 
         <div className={styles.colRight}>
+          <OpponentProfile />
           <button
             type="button"
             className={`${styles.toggle} ${showRange ? styles.toggleActive : ''}`}

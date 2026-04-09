@@ -4,11 +4,12 @@ import {
   countWeakSpotsForMode,
   modeAccuracyPercent,
   weakSpotHandLabel,
-  weakSpotModeLabel,
   WEAK_SPOT_TRACKED_MODES,
 } from '../../utils/weakSpots'
 import type { DailyProgress } from '../../hooks/useDailyProgress'
 import { useTranslation } from '../../i18n/LanguageContext'
+import { localizeWeakSpotPositionLabel } from '../../utils/postflopHardcodedLocalize'
+import { trainingModeDisplayLabel } from '../../utils/wrongBookFormat'
 import styles from './WeakSpotsPage.module.css'
 
 export interface WeakSpotsPageProps {
@@ -21,7 +22,7 @@ export interface WeakSpotsPageProps {
  * 弱點分析：依模式列出錯題加權項目並可一鍵進入複習。
  */
 export function WeakSpotsPage({ spots, progressByMode, onStartReview }: WeakSpotsPageProps) {
-  const { t } = useTranslation()
+  const { t, lang } = useTranslation()
   const [openMode, setOpenMode] = useState<string | null>(null)
 
   const modesWithAny = useMemo(() => {
@@ -49,7 +50,7 @@ export function WeakSpotsPage({ spots, progressByMode, onStartReview }: WeakSpot
               <div key={mode} className={styles.card}>
                 <div className={styles.row}>
                   <div>
-                    <div className={styles.modeName}>{weakSpotModeLabel(mode)}</div>
+                    <div className={styles.modeName}>{trainingModeDisplayLabel(mode, t.pages)}</div>
                     <div className={styles.stats}>
                       {t.pages.weakspots_leaks_fmt.replace('{n}', String(n))}
                       {acc != null ? ` ／ ${t.quiz.accuracy} ${acc}%` : ''}
@@ -73,11 +74,11 @@ export function WeakSpotsPage({ spots, progressByMode, onStartReview }: WeakSpot
                         <div key={`${s.mode}-${s.position}-${s.handIdx}-${s.questionId}-${i}`} className={styles.spotLine}>
                           {s.questionId != null
                             ? t.pages.weakspots_spot_question_fmt
-                                .replace('{pos}', s.position)
+                                .replace('{pos}', localizeWeakSpotPositionLabel(s.position, lang))
                                 .replace('{id}', String(s.questionId))
                                 .replace('{n}', String(s.wrongCount))
                             : t.pages.weakspots_spot_hand_fmt
-                                .replace('{pos}', s.position)
+                                .replace('{pos}', localizeWeakSpotPositionLabel(s.position, lang))
                                 .replace(
                                   '{hand}',
                                   s.handIdx != null ? weakSpotHandLabel(s.handIdx) : '?',

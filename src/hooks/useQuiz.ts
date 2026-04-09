@@ -1,5 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useOpponentType } from '../contexts/OpponentTypeContext'
+import { getAdjustedRFIAction } from '../utils/exploitRanges'
 import { isRFI } from '../utils/ranges'
 import type { QuizIntegrationOptions } from './quizIntegration'
 import { recordRfiWrong } from '../utils/wrongBook'
@@ -34,6 +36,7 @@ export function useQuiz(
   const integrationRef = useRef(integration)
   integrationRef.current = integration
   const dealSeqRef = useRef(0)
+  const { opponentType } = useOpponentType()
 
   const [currentPosition, setCurrentPosition] = useState('BTN')
   const [currentHandIdx, setCurrentHandIdx] = useState(0)
@@ -42,6 +45,8 @@ export function useQuiz(
   )
   const [phase, setPhase] = useState<QuizPhase>('question')
   const [lastCorrect, setLastCorrect] = useState<boolean | null>(null)
+  /** 結果頁時最後一次選擇（供切換桌型重算正確與否）。 */
+  const [lastUserAction, setLastUserAction] = useState<'raise' | 'fold' | null>(null)
   const [showRange, setShowRange] = useState(false)
 
   const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -71,26 +76,40 @@ export function useQuiz(
     setCurrentCombo(pickComboForHandIndex(idx))
     setPhase('question')
     setLastCorrect(null)
+    setLastUserAction(null)
   }, [currentPosition, integration?.weakReviewOnly])
 
   useEffect(() => {
     dealRandom()
   }, [dealRandom])
 
+  /**
+   * 結果頁切換桌型時，依新桌型重算是否與預期動作一致。
+   */
+  useEffect(() => {
+    if (phase !== 'result' || lastUserAction === null) return
+    const expectedRaise =
+      getAdjustedRFIAction(currentHandIdx, currentPosition, opponentType) === 'raise'
+    const userRaise = lastUserAction === 'raise'
+    setLastCorrect(userRaise === expectedRaise)
+  }, [opponentType, phase, currentHandIdx, currentPosition, lastUserAction])
+
   const answer = useCallback(
     (action: 'raise' | 'fold') => {
       if (phase !== 'question') return
 
-      const gtoRaise = isRFI(currentHandIdx, currentPosition)
+      const solverRaise = isRFI(currentHandIdx, currentPosition)
+      const expectedRaise = getAdjustedRFIAction(currentHandIdx, currentPosition, opponentType) === 'raise'
       const userRaise = action === 'raise'
-      const correct = userRaise === gtoRaise
+      const correct = userRaise === expectedRaise
 
       if (!correct) {
         recordRfiWrong({
           position: currentPosition,
           handIdx: currentHandIdx,
           user: action,
-          gto: gtoRaise ? 'raise' : 'fold',
+          gto: expectedRaise ? 'raise' : 'fold',
+          solverGto: solverRaise === expectedRaise ? undefined : solverRaise ? 'raise' : 'fold',
         })
       }
 
@@ -103,6 +122,7 @@ export function useQuiz(
         handIdx: currentHandIdx,
       })
       integrationRef.current?.onDailyAnswer?.('rfi', correct)
+      setLastUserAction(action)
       setLastCorrect(correct)
       setPhase('result')
 
@@ -112,7 +132,7 @@ export function useQuiz(
         advanceTimerRef.current = null
       }, 1200)
     },
-    [phase, currentHandIdx, currentPosition, clearAdvanceTimer, dealRandom, setStats],
+    [phase, currentHandIdx, currentPosition, opponentType, clearAdvanceTimer, dealRandom, setStats],
   )
 
   useEffect(() => () => clearAdvanceTimer(), [clearAdvanceTimer])
@@ -127,6 +147,7 @@ export function useQuiz(
       setCurrentCombo(pickComboForHandIndex(idx))
       setPhase('question')
       setLastCorrect(null)
+      setLastUserAction(null)
     },
     [clearAdvanceTimer],
   )

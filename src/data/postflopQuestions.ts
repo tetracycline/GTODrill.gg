@@ -1,3 +1,5 @@
+import type { OpponentType } from '../types/opponentType'
+
 /**
  * 翻後訓練題目（硬編碼 / AI 共用結構）。
  */
@@ -12,13 +14,20 @@ export interface PostflopQuestion {
   facing: string
   question: string
   options: string[]
+  /** GTO／基準答案（繁中原文；本地化後仍為「基準」）。 */
   correctAnswer: string
+  /** 特定桌型之剝削答案覆寫（鍵為桌型，值為與 `options` 一致之繁中原文）。 */
+  opponentOverrides?: Partial<Record<OpponentType, string>>
   explanation: string
   source: string
   /**
    * 為 true 時為邊緣／決策較難的 spot；抽題時會提高出現比例。
    */
   marginal?: boolean
+  /**
+   * 繁中原始 position（題庫／情境內部鍵）；`position` 本地化顯示時仍用此欄做弱點統計。
+   */
+  positionRecord?: string
 }
 
 // ── HARDCODED QUESTIONS ──────────────────────────────────────────
@@ -41,9 +50,13 @@ export const HARDCODED_QUESTIONS: PostflopQuestion[] = [
     facing: 'BB check',
     question: 'A72 彩虹板，持有 AJ（頂對頂踢）。應該如何下注？',
     options: ['小注 25-33%', '大注 67-75%', 'Check'],
-    correctAnswer: '小注 25-33%',
+    correctAnswer: 'Check',
+    opponentOverrides: {
+      fish: '小注 25-33%',
+      nit: '小注 25-33%',
+    },
     explanation:
-      '乾燥 Ace 高板，BTN c-bet 頻率約 70-80%，以小注為主。\n• Range advantage 大，不需大注驅趕\n• 小注讓 BB 的弱 Ace 和 pair 繼續跟注\n• 板面靜態，不需要保護\n來源：GTO Wizard "The Mechanics of C-Bet Sizing"',
+      'GTO 在乾燥 Ace 高板會混用 Check 與小注；此題以 **Check** 為基準（控池、保留 range）。\n• 對 **Fish**：可改用小注拿薄價值，因對手跟注範圍太寬、棄牌不足。\n• 對 **Nit**：小注逼退邊緣對子亦有價值。\n來源：GTO Wizard "The Mechanics of C-Bet Sizing"',
     source: 'GTO Wizard: The Mechanics of C-Bet Sizing',
     marginal: false,
   },
@@ -78,6 +91,10 @@ export const HARDCODED_QUESTIONS: PostflopQuestion[] = [
     question: 'K73 彩虹板，持有 K7（兩對）。BTN c-bet 頻率約 76%。應該怎麼做？',
     options: ['小注 25-33%', '大注 67-75%', 'Check'],
     correctAnswer: '小注 25-33%',
+    opponentOverrides: {
+      fish: '大注 67-75%',
+      nit: '小注 25-33%',
+    },
     explanation:
       'King 高乾燥彩虹板，BTN 有明顯 range advantage。\n• c-bet 頻率高（~76%），以小注為主\n• K7 兩對在此板很強，薄 value 下注\n• 小注讓 BB 的 Kx、pair 手牌繼續付費\n來源：GTO Wizard "Flop Heuristics" (K73 rainbow BTN cbets 76.5%)',
     source: 'GTO Wizard: Flop Heuristics (K73 rainbow = 76.5% cbet)',
@@ -114,6 +131,11 @@ export const HARDCODED_QUESTIONS: PostflopQuestion[] = [
     question: 'QJT 兩色連張板，持有 T9（底對 + gutshot）。BTN c-bet 頻率約 50%。應該怎麼做？',
     options: ['小注 25-33%', '大注 67-75%', 'Check'],
     correctAnswer: 'Check',
+    opponentOverrides: {
+      fish: 'Check',
+      nit: '小注 25-33%',
+      aggro: 'Check',
+    },
     explanation:
       'QJT 超濕板，BTN c-bet 只有約 50%，另一半 check。\n• BB 的 range 在此板 connect 很多（K、8、9 都有直順）\n• T9 不是強手，很多牌被 beat\n• Check 保護你的 range，避免被 check-raise\n來源：GTO Wizard "The Mechanics of C-Bet Sizing" (QJT ~50% cbet)',
     source: 'GTO Wizard: The Mechanics of C-Bet Sizing (QJT)',

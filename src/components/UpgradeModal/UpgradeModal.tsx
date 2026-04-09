@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useTranslation } from '../../i18n/LanguageContext'
+import { hasActiveProSubscription } from '../../lib/supabase'
 import { GUMROAD_PRO_URL } from '../../utils/gumroad'
 import styles from './UpgradeModal.module.css'
 
 export interface UpgradeModalProps {
   /** 關閉對話框。 */
   onClose: () => void
+  /** 特定情境提示（例如免費額度用盡）。 */
+  contextMessage?: string | null
 }
 
 /**
@@ -22,11 +25,12 @@ function resolveUpgradeHref(): string {
  * 免費／訪客點選 Pro 功能時顯示的升級說明；導向 Gumroad 結帳。
  * 付款成功後由 Gumroad Ping（Supabase Edge Function）依**相同 email** 自動升級並在續訂時延長 `subscription_expires_at`。
  */
-export function UpgradeModal({ onClose }: UpgradeModalProps) {
+export function UpgradeModal({ onClose, contextMessage = null }: UpgradeModalProps) {
   const { t } = useTranslation()
-  const { isLoggedIn, refreshProfile } = useAuth()
+  const { isLoggedIn, refreshProfile, user } = useAuth()
   const upgradeHref = resolveUpgradeHref()
   const [refreshing, setRefreshing] = useState(false)
+  const [refreshHint, setRefreshHint] = useState<'idle' | 'pro' | 'free' | 'no_profile'>('idle')
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -37,16 +41,28 @@ export function UpgradeModal({ onClose }: UpgradeModalProps) {
   }, [onClose])
 
   /**
-   * 付款後手動重新拉取 `profiles`（Webhook 可能有數秒延遲）。
+   * 付款後手動重新拉取 `profiles`；依回傳列立即顯示是否已 Pro（不依賴下一次 render 的 context）。
    */
   const handleRefreshStatus = async () => {
     setRefreshing(true)
+    setRefreshHint('idle')
     try {
-      await refreshProfile()
+      const row = await refreshProfile()
+      if (!row) {
+        setRefreshHint('no_profile')
+        return
+      }
+      if (hasActiveProSubscription(row)) {
+        setRefreshHint('pro')
+      } else {
+        setRefreshHint('free')
+      }
     } finally {
       setRefreshing(false)
     }
   }
+
+  const accountEmail = user?.email?.trim() ?? ''
 
   return (
     <div className={styles.backdrop} role="presentation" onClick={onClose}>
@@ -60,19 +76,31 @@ export function UpgradeModal({ onClose }: UpgradeModalProps) {
         <h2 id="upgrade-title" className={styles.title}>
           {t.upgrade.title}
         </h2>
+        {contextMessage ? <p className={styles.lead}>{contextMessage}</p> : null}
         <p className={styles.lead}>{t.upgrade.lead}</p>
         <ul className={styles.list}>
-          <li>{t.upgrade.feature_bvb_line}</li>
-          <li>{t.upgrade.feature_ai}</li>
-          <li>{t.upgrade.feature_hand_history}</li>
-          <li>{t.upgrade.feature_weak_sync}</li>
+          <li>FREE includes:</li>
+          <li>✅ RFI Training</li>
+          <li>✅ VS RFI</li>
+          <li>✅ Push Fold</li>
+          <li>✅ 10 Postflop questions/day</li>
+          <li>PRO $8/month includes everything +</li>
+          <li>✅ BvB, VS 3BET, VS 4BET, Cold 4-Bet</li>
+          <li>✅ Unlimited Postflop training</li>
+          <li>✅ Weak Spot tracking</li>
         </ul>
-        <p className={styles.price}>{t.upgrade.price}</p>
+        <p className={styles.price}>$8 / month</p>
 
         <div className={styles.hintBlock}>
           <p className={styles.hintText}>{t.upgrade.checkout_email_hint}</p>
           <p className={styles.hintText}>{t.upgrade.auto_renew_hint}</p>
         </div>
+
+        {isLoggedIn && accountEmail ? (
+          <p className={styles.accountEmail}>
+            {t.upgrade.refresh_account_email_fmt.replace('{email}', accountEmail)}
+          </p>
+        ) : null}
 
         {isLoggedIn ? (
           <div className={styles.refreshRow}>
@@ -84,6 +112,21 @@ export function UpgradeModal({ onClose }: UpgradeModalProps) {
             >
               {refreshing ? '…' : t.upgrade.refresh_status_cta}
             </button>
+            {refreshHint === 'pro' ? (
+              <p className={styles.refreshOk} role="status">
+                {t.upgrade.refresh_result_pro}
+              </p>
+            ) : null}
+            {refreshHint === 'free' ? (
+              <p className={styles.refreshWarn} role="status">
+                {t.upgrade.refresh_result_free}
+              </p>
+            ) : null}
+            {refreshHint === 'no_profile' ? (
+              <p className={styles.refreshWarn} role="alert">
+                {t.upgrade.refresh_result_no_profile}
+              </p>
+            ) : null}
           </div>
         ) : null}
 

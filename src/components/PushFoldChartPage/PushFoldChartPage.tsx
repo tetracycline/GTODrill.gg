@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { isPush } from '../../utils/ranges'
 import { useKeyboard } from '../../hooks/useKeyboard'
+import { OpponentProfile } from '../OpponentProfile/OpponentProfile'
 import { RangeMatrix } from '../RangeMatrix/RangeMatrix'
 import { ShortcutOverlay } from '../ShortcutOverlay/ShortcutOverlay'
 import { PUSH_FOLD_STACK_PRESETS } from '../../hooks/usePushFoldQuiz'
@@ -129,6 +130,7 @@ export function PushFoldChartPage() {
         </div>
 
         <div className={styles.colRight}>
+          <OpponentProfile />
           <div className={styles.matrixCard}>
             <div className={styles.headerRow}>
               <span className={styles.badgeBb}>{stackBb} bb</span>

@@ -202,3 +202,50 @@
   color: var(--text-secondary);
   font-style: italic;
 }
+
+.reportTextarea {
+  width: 100%;
+  min-height: 112px;
+  margin-top: 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border-card);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  padding: 10px 12px;
+  resize: vertical;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.privacyHint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.reportRow {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.reportBtn {
+  border: 1px solid var(--border-range-active);
+  background: color-mix(in srgb, var(--btn-pos-active) 22%, transparent);
+  color: var(--text-primary);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.reportBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.reportStatus {
+  font-size: 12px;
+  color: var(--text-secondary);
+}

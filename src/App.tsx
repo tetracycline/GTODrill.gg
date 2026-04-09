@@ -23,15 +23,12 @@ import { PostflopPage } from './components/PostflopPage/PostflopPage'
 import { Cold4betPage } from './components/Cold4betPage/Cold4betPage'
 import { WeakSpotsPage } from './components/WeakSpotsPage/WeakSpotsPage'
 import { DailyProgress } from './components/DailyProgress/DailyProgress'
-import { HandHistoryPage } from './components/HandHistoryPage/HandHistoryPage'
-import { AIChatPage } from './components/AIChatPage/AIChatPage'
 import { AdminPage } from './components/AdminPage/AdminPage'
 import {
   AuthModal,
   type AuthModalReason,
 } from './components/AuthModal/AuthModal'
 import { UpgradeModal } from './components/UpgradeModal/UpgradeModal'
-import { FREE_POSTFLOP_ANSWERS_PER_DAY, isProOnlyMode } from './config/freemium'
 import { useAuth } from './contexts/AuthContext'
 import { useKeyboard } from './hooks/useKeyboard'
 import { usePushFoldQuiz } from './hooks/usePushFoldQuiz'
@@ -51,6 +48,8 @@ import { debugRangeSize } from './utils/ranges'
 import { loadWrongQuizEntries, WRONG_BOOK_EVENT } from './utils/wrongBook'
 import { WEAK_SPOT_TRACKED_MODES } from './utils/weakSpots'
 import { useTranslation } from './i18n/LanguageContext'
+import { OpponentProfile } from './components/OpponentProfile/OpponentProfile'
+import { OpponentTypeSelector } from './components/OpponentTypeSelector/OpponentTypeSelector'
 import styles from './App.module.css'
 
 export type TrainerMode =
@@ -65,10 +64,59 @@ export type TrainerMode =
   | 'postflop-cbet'
   | 'ai-coach'
   | 'weakspots'
-  | 'hand-history'
   | 'admin'
 
 const EMPTY_STATS: QuizStats = { total: 0, correct: 0, streak: 0 }
+const FREE_POSTFLOP_ANSWERS_PER_DAY = 10
+const POSTFLOP_DAILY_COUNT_KEY = 'postflop-daily-count'
+const FREE_MODES = new Set<TrainerMode>(['rfi', 'vsrfi', 'pushfold', 'pushfoldchart'])
+const PARTIALLY_FREE_MODES = new Set<TrainerMode>(['postflop-cbet'])
+const PRO_MODES = new Set<TrainerMode>([
+  'bvb',
+  'vs3bet',
+  'vs4bet',
+  'cold4bet',
+  'weakspots',
+])
+
+interface PostflopDailyCounter {
+  date: string
+  count: number
+}
+
+/**
+ * 取得本地日期 key（YYYY-MM-DD）。
+ */
+function localDateKey(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+/**
+ * 讀取 postflop 每日作答計數，跨日自動重置。
+ */
+function loadPostflopDailyCounter(): PostflopDailyCounter {
+  const today = localDateKey(new Date())
+  try {
+    const raw = localStorage.getItem(POSTFLOP_DAILY_COUNT_KEY)
+    if (!raw) return { date: today, count: 0 }
+    const p = JSON.parse(raw) as { date?: string; count?: number }
+    if (p.date !== today) return { date: today, count: 0 }
+    const count = Number.isFinite(p.count) ? Math.max(0, Number(p.count)) : 0
+    return { date: today, count }
+  } catch {
+    return { date: today, count: 0 }
+  }
+}
+
+/**
+ * 寫入 postflop 每日作答計數。
+ */
+function savePostflopDailyCounter(counter: PostflopDailyCounter): void {
+  localStorage.setItem(POSTFLOP_DAILY_COUNT_KEY, JSON.stringify(counter))
+}
 
 /**
  * 側邊欄頭像沒有圖片時的縮寫字元。
@@ -168,6 +216,7 @@ function RfiTrainingView({ quiz }: RfiTrainingViewProps) {
           />
         </div>
         <div className={styles.colRight}>
+          <OpponentProfile />
           <RangePanel
             showRange={showRange}
             onToggleShowRange={() => setShowRange((s) => !s)}
@@ -212,6 +261,7 @@ function App() {
   const { t, lang, setLang } = useTranslation()
   const { user, isLoggedIn, isAdmin, isPro, profile, signOut } = useAuth()
   const [upgradeOpen, setUpgradeOpen] = useState(false)
+  const [upgradeMessage, setUpgradeMessage] = useState<string | null>(null)
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [authModalReason, setAuthModalReason] = useState<AuthModalReason>('save-progress')
   const hasProAccess = isPro || isAdmin
@@ -224,6 +274,13 @@ function App() {
   const handleSignOut = useCallback(async () => {
     await signOut()
   }, [signOut])
+
+  /**
+   * 開啟 Gumroad 訂閱管理頁，供使用者取消或管理訂閱。
+   */
+  const openManageSubscription = useCallback(() => {
+    window.open('https://gumroad.com/library', '_blank', 'noopener,noreferrer')
+  }, [])
 
   useLayoutEffect(() => {
     const th = localStorage.getItem('gto-theme') === 'light' ? 'light' : 'dark'
@@ -244,7 +301,6 @@ function App() {
         'postflop-cbet': t.sidebar.postflop_cbet,
         'ai-coach': t.sidebar.ai_qa,
         weakspots: t.sidebar.weak_spots,
-        'hand-history': t.sidebar.hand_history,
         admin: t.sidebar.admin,
       }) satisfies Record<TrainerMode, string>,
     [t],
@@ -273,11 +329,16 @@ function App() {
         goMode('admin')
         return
       }
-      if (isProOnlyMode(m) && !hasProAccess) {
+      if (FREE_MODES.has(m) || PARTIALLY_FREE_MODES.has(m)) {
+        goMode(m)
+        return
+      }
+      if (PRO_MODES.has(m) && !hasProAccess) {
         if (!isLoggedIn) {
           openAuthModal('upgrade-pro')
           return
         }
+        setUpgradeMessage(null)
         setUpgradeOpen(true)
         return
       }
@@ -288,11 +349,12 @@ function App() {
 
   const startWeakReview = useCallback(
     (m: (typeof WEAK_SPOT_TRACKED_MODES)[number]) => {
-      if (isProOnlyMode(m as TrainerMode) && !hasProAccess) {
+      if (PRO_MODES.has(m as TrainerMode) && !hasProAccess) {
         if (!isLoggedIn) {
           openAuthModal('upgrade-pro')
           return
         }
+        setUpgradeMessage(null)
         setUpgradeOpen(true)
         return
       }
@@ -408,11 +470,25 @@ function App() {
     [weakReviewMode, recordResult, recordAnswer, pickWeakHandForMode, pickWeakQuestionIdForMode],
   )
   const intPf = useMemo(() => {
+    const canUsePostflopToday = () => {
+      const c = loadPostflopDailyCounter()
+      return c.count < FREE_POSTFLOP_ANSWERS_PER_DAY
+    }
+
+    const bumpPostflopCount = () => {
+      const c = loadPostflopDailyCounter()
+      const next = { ...c, count: c.count + 1 }
+      savePostflopDailyCounter(next)
+    }
+
     const base = buildQuizIntegration(
       'postflop-cbet',
       weakReviewMode,
       recordResult,
-      recordAnswer,
+      (mode, correct) => {
+        recordAnswer(mode, correct)
+        if (!hasProAccess && mode === 'postflop-cbet') bumpPostflopCount()
+      },
       pickWeakHandForMode,
       pickWeakQuestionIdForMode,
     )
@@ -421,8 +497,13 @@ function App() {
       allowAnswer: (modeId: string) =>
         modeId !== 'postflop-cbet' ||
         hasProAccess ||
-        (progress.byMode['postflop-cbet']?.total ?? 0) < FREE_POSTFLOP_ANSWERS_PER_DAY,
-      onAnswerDenied: () => setUpgradeOpen(true),
+        canUsePostflopToday(),
+      onAnswerDenied: () => {
+        setUpgradeMessage(
+          "You've used your 10 free questions today.\nUpgrade to Pro for unlimited access.",
+        )
+        setUpgradeOpen(true)
+      },
     }
   }, [
     weakReviewMode,
@@ -431,7 +512,6 @@ function App() {
     pickWeakHandForMode,
     pickWeakQuestionIdForMode,
     hasProAccess,
-    progress.byMode,
   ])
 
   const rfiQuiz = useQuiz(statsByMode.rfi, setStats('rfi'), intRfi)
@@ -441,7 +521,7 @@ function App() {
   const vs4Quiz = useVs4betQuiz(statsByMode.vs4bet, setStats('vs4bet'), intVs4)
   const coldQuiz = useCold4betQuiz(statsByMode.cold4bet, setStats('cold4bet'), intCold)
   const pushQuiz = usePushFoldQuiz(statsByMode.pushfold, setStats('pushfold'), intPush)
-  const postflopQuiz = usePostflopQuiz(statsByMode['postflop-cbet'], setStats('postflop-cbet'), intPf)
+  const postflopQuiz = usePostflopQuiz(statsByMode['postflop-cbet'], setStats('postflop-cbet'), lang, intPf)
 
   useEffect(() => {
     debugRangeSize()
@@ -514,10 +594,14 @@ function App() {
         return <PostflopPage quiz={postflopQuiz} />
       case 'ai-coach':
         return (
-          <AIChatPage
-            isUnlimited={hasProAccess}
-            onFreeLimitReached={() => setUpgradeOpen(true)}
-          />
+          <>
+            <header className={styles.header}>
+              <h1 className={styles.title}>{t.sidebar.ai_qa}</h1>
+            </header>
+            <main className={styles.main}>
+              <div className={styles.comingSoonCenter}>Coming Soon</div>
+            </main>
+          </>
         )
       case 'admin':
         return <AdminPage onBack={() => goMode('rfi')} />
@@ -529,12 +613,16 @@ function App() {
             onStartReview={startWeakReview}
           />
         )
-      case 'hand-history':
-        return <HandHistoryPage />
       default:
         return null
     }
   }
+
+  /**
+   * Pro 模式標籤：非 Pro 使用者顯示鎖頭。
+   */
+  const modeLabel = (modeId: TrainerMode, label: string): string =>
+    !hasProAccess && PRO_MODES.has(modeId) ? `${label} 🔒` : label
 
   return (
     <div className={styles.appShell}>
@@ -589,6 +677,9 @@ function App() {
           )}
         </div>
       </header>
+      <div className={styles.mobileOpponentBar}>
+        <OpponentTypeSelector scrollRow />
+      </div>
       {mobileNavOpen ? (
         <button
           type="button"
@@ -623,28 +714,28 @@ function App() {
             className={`${styles.navItem} ${mode === 'bvb' ? styles.navItemActive : ''}`}
             onClick={() => requestMode('bvb')}
           >
-            {t.sidebar.bvb}
+            {modeLabel('bvb', t.sidebar.bvb)}
           </button>
           <button
             type="button"
             className={`${styles.navItem} ${mode === 'vs3bet' ? styles.navItemActive : ''}`}
             onClick={() => requestMode('vs3bet')}
           >
-            {t.sidebar.vs_3bet}
+            {modeLabel('vs3bet', t.sidebar.vs_3bet)}
           </button>
           <button
             type="button"
             className={`${styles.navItem} ${mode === 'vs4bet' ? styles.navItemActive : ''}`}
             onClick={() => requestMode('vs4bet')}
           >
-            {t.sidebar.vs_4bet}
+            {modeLabel('vs4bet', t.sidebar.vs_4bet)}
           </button>
           <button
             type="button"
             className={`${styles.navItem} ${mode === 'cold4bet' ? styles.navItemActive : ''}`}
             onClick={() => requestMode('cold4bet')}
           >
-            {t.sidebar.cold_4bet}
+            {modeLabel('cold4bet', t.sidebar.cold_4bet)}
           </button>
         </nav>
 
@@ -695,14 +786,7 @@ function App() {
             className={`${styles.navItem} ${mode === 'weakspots' ? styles.navItemActive : ''}`}
             onClick={() => requestMode('weakspots')}
           >
-            {t.sidebar.weak_spots}
-          </button>
-          <button
-            type="button"
-            className={`${styles.navItem} ${mode === 'hand-history' ? styles.navItemActive : ''}`}
-            onClick={() => requestMode('hand-history')}
-          >
-            {t.sidebar.hand_history}
+            {modeLabel('weakspots', t.sidebar.weak_spots)}
           </button>
         </nav>
 
@@ -770,6 +854,9 @@ function App() {
       </aside>
       <div className={styles.mainColumn}>
         <div className={styles.desktopTopBar}>
+          <div className={styles.desktopTopBarLeft}>
+            <OpponentTypeSelector />
+          </div>
           <div className={styles.userCard}>
             {user ? (
               <div className={styles.userRow}>
@@ -794,6 +881,13 @@ function App() {
                     onClick={() => void handleSignOut()}
                   >
                     {t.auth.sign_out}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.userManageSubBtn}
+                    onClick={openManageSubscription}
+                  >
+                    {t.auth.manage_subscription}
                   </button>
                 </div>
               </div>
@@ -828,7 +922,15 @@ function App() {
         onClose={() => setAuthModalOpen(false)}
         reason={authModalReason}
       />
-      {upgradeOpen ? <UpgradeModal onClose={() => setUpgradeOpen(false)} /> : null}
+      {upgradeOpen ? (
+        <UpgradeModal
+          onClose={() => {
+            setUpgradeOpen(false)
+            setUpgradeMessage(null)
+          }}
+          contextMessage={upgradeMessage}
+        />
+      ) : null}
     </div>
   )
 }

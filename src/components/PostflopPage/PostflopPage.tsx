@@ -1,9 +1,13 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
+import { useOpponentType } from '../../contexts/OpponentTypeContext'
 import { useKeyboard } from '../../hooks/useKeyboard'
 import { usePostflopQuiz } from '../../hooks/usePostflopQuiz'
+import type { OpponentType } from '../../types/opponentType'
+import { getEffectivePostflopCorrectAnswer } from '../../utils/exploitRanges'
 import { PlayingCard } from '../PlayingCard/PlayingCard'
 import { ShortcutOverlay } from '../ShortcutOverlay/ShortcutOverlay'
 import { StatsBar } from '../StatsBar/StatsBar'
+import { OpponentProfile } from '../OpponentProfile/OpponentProfile'
 import { parseBoardCards, parseTwoCardString } from '../../utils/postflopAI'
 import { useTranslation } from '../../i18n/LanguageContext'
 import styles from './PostflopPage.module.css'
@@ -22,12 +26,52 @@ function parsePositionParts(position: string): { left: string; right: string } |
 }
 
 /**
+ * @param type - 桌型 id
+ * @param tr - 翻譯 `opponent_type` 區塊
+ */
+function opponentTypeShortLabel(
+  type: OpponentType,
+  tr: {
+    gto: string
+    fish: string
+    nit: string
+    aggro: string
+    reg: string
+  },
+): string {
+  switch (type) {
+    case 'gto':
+      return tr.gto
+    case 'fish':
+      return tr.fish
+    case 'nit':
+      return tr.nit
+    case 'aggro':
+      return tr.aggro
+    case 'reg':
+      return tr.reg
+    default:
+      return tr.gto
+  }
+}
+
+/**
  * 翻後 C-Bet 訓練頁。
  */
 export function PostflopPage({ quiz }: PostflopPageProps) {
   const { t } = useTranslation()
+  const { opponentType } = useOpponentType()
   const [shortcutOpen, setShortcutOpen] = useState(false)
   const { currentQuestion, phase, pickedOption, stats, answer, nextHand, resetStats } = quiz
+
+  const effectiveCorrect = useMemo(() => {
+    if (!currentQuestion) return ''
+    return getEffectivePostflopCorrectAnswer(currentQuestion, opponentType)
+  }, [currentQuestion, opponentType])
+
+  const gtoBaseline = currentQuestion?.correctAnswer ?? ''
+  const showOverrideNote =
+    phase === 'result' && Boolean(currentQuestion) && effectiveCorrect !== gtoBaseline
 
   const toggleShortcutOverlay = useCallback(() => setShortcutOpen((o) => !o), [])
   const closeShortcutOverlay = useCallback(() => setShortcutOpen(false), [])
@@ -104,12 +148,16 @@ export function PostflopPage({ quiz }: PostflopPageProps) {
                   {posParts ? (
                     <>
                       <span className={styles.badgeBtn}>{posParts.left}</span>
-                      <span className={styles.badgeVs}>vs</span>
+                      <span className={styles.badgeVs}>{t.pages.postflop_vs}</span>
                       <span className={styles.badgeBb}>{posParts.right}</span>
                     </>
                   ) : (
                     <span className={styles.badgeBb}>{currentQuestion.position}</span>
                   )}
+                  <span className={styles.opponentBadge}>
+                    {t.opponent_type.playing_vs}:{' '}
+                    {opponentTypeShortLabel(opponentType, t.opponent_type)}
+                  </span>
                 </div>
 
                 <div className={styles.boardRow}>
@@ -165,7 +213,7 @@ export function PostflopPage({ quiz }: PostflopPageProps) {
                   {currentQuestion.options.map((opt, i) => {
                     const hint = `(${i + 1})`
                     const isResult = phase === 'result'
-                    const isCorrectOpt = opt === currentQuestion.correctAnswer
+                    const isCorrectOpt = opt === effectiveCorrect
                     const isPicked = pickedOption === opt
                     let extra = ''
                     if (isResult && isCorrectOpt) extra = styles.optCorrect
@@ -193,12 +241,21 @@ export function PostflopPage({ quiz }: PostflopPageProps) {
                     )
                   })}
                 </div>
+                {showOverrideNote ? (
+                  <p className={styles.overrideNote}>
+                    {t.opponent_type.override_note
+                      .replace('{type}', opponentTypeShortLabel(opponentType, t.opponent_type))
+                      .replace('{answer}', effectiveCorrect)
+                      .replace('{gto_answer}', gtoBaseline)}
+                  </p>
+                ) : null}
               </div>
             </>
           ) : null}
         </div>
 
         <div className={styles.colRight}>
+          <OpponentProfile />
           {phase === 'result' && currentQuestion ? (
             <div className={styles.explainPanel}>
               <div className={styles.explainTitle}>{t.pages.postflop_explain}</div>

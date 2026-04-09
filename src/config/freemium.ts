@@ -5,7 +5,6 @@ const PRO_ONLY_MODE_IDS = [
   'vs4bet',
   'cold4bet',
   'weakspots',
-  'hand-history',
   'ai-coach',
 ] as const
 

@@ -1,5 +1,18 @@
 import type { PostflopQuestion } from '../data/postflopQuestions'
+import type { Language } from '../i18n/types'
 import type { SuitCode } from './cardCombo'
+import {
+  aiScenarioPositionByIndex,
+  boardTextureTypeLabel,
+  buildAiQuestionText,
+  claudeExplanationLanguageDirective,
+  indexOfAiScenarioPosition,
+  postflopAiSourceLabel,
+  postflopFallbackCopy,
+  SCENARIO_OPTIONS_BY_LANG,
+  spotContextForLang,
+  turnCardTypeLabel,
+} from './postflopLocale'
 
 /**
  * AI 題情境類型：對應不同選項集合與 prompt 原則。
@@ -10,13 +23,9 @@ export type AiScenarioType =
   | 'turn-barrel' // IP raiser on turn → continue/check
   | 'probe-bet' // OOP after flop checks through → probe/check
 
-/** 各情境允許的標準答案字串（須與 Claude JSON 完全一致）。 */
-export const SCENARIO_OPTIONS: Record<AiScenarioType, readonly string[]> = {
-  'flop-cbet': ['小注 25-33%', '大注 67-75%', 'Check'],
-  'bb-defense': ['Check-Raise', 'Call', 'Fold'],
-  'turn-barrel': ['繼續下注 Barrel', 'Check'],
-  'probe-bet': ['Probe 下注 50%', 'Check'],
-} as const
+/** 各情境允許的標準答案字串（繁中；與 Claude JSON 預設一致）。 */
+export const SCENARIO_OPTIONS: Record<AiScenarioType, readonly string[]> =
+  SCENARIO_OPTIONS_BY_LANG['zh-TW']
 
 /**
  * 加權情境列（主要抽題來源）；{@link POSITIONS_FOR_AI} 保留舊版相容。
@@ -76,63 +85,10 @@ export const POSITIONS_FOR_AI = [
 export type AiTrainingPosition = (typeof POSITIONS_FOR_AI)[number]
 
 /**
- * 依位置字串回傳 pot、facing（供 AI prompt 與題目欄位）。
+ * 依位置字串回傳 pot、facing（繁中；供舊程式或除錯）。
  */
 export function spotContextForPosition(position: string): { pot: string; facing: string } {
-  if (position.includes('多人底池')) {
-    return {
-      pot: '~8bb（三人底池）',
-      facing: 'BTN check，BB check，輪到 Hero（CO）',
-    }
-  }
-  if (position.includes('BB 防守') && position.includes('大注')) {
-    return {
-      pot: '5.5bb',
-      facing: 'BTN 約 67% pot c-bet，BB 行動',
-    }
-  }
-  if (position.includes('BB 防守')) {
-    return {
-      pot: '5.5bb',
-      facing: 'BTN 約 33% pot c-bet，BB 行動',
-    }
-  }
-  if (position.includes('翻牌大注後，轉牌')) {
-    return {
-      pot: '~18bb（翻牌大注後 BB call）',
-      facing: '翻牌 Hero 大注，BB call；轉牌 BB check',
-    }
-  }
-  if (position.includes('翻牌小注後，轉牌')) {
-    return {
-      pot: '~12bb（翻牌小注後 BB call）',
-      facing: '翻牌 Hero 小注，BB call；轉牌 BB check',
-    }
-  }
-  if (
-    position.includes('probe') ||
-    position.includes('check through') ||
-    position.includes('BB probe') ||
-    (position.includes('BB 先行動') && position.includes('check through'))
-  ) {
-    return {
-      pot: '~5.5bb（翻牌無下注）',
-      facing: '翻牌 BTN check、BB check；轉牌輪到 BB 先行',
-    }
-  }
-  if (position.includes('轉牌 bluff')) {
-    return {
-      pot: '~12bb（翻牌小注後 BB call）',
-      facing: '翻牌 Hero 小注，BB call；轉牌 BB check',
-    }
-  }
-  if (position.includes('3bet')) {
-    return { pot: '~22bb（3bet pot）', facing: 'BTN check' }
-  }
-  if (position.includes('SB vs BB')) {
-    return { pot: '7bb（SB 單挑 open）', facing: 'BB check' }
-  }
-  return { pot: '5.5bb', facing: 'BB check' }
+  return spotContextForLang(position, 'zh-TW')
 }
 
 /** 牌面質地與範例 flop（供 AI 或備用題隨機） */
@@ -225,35 +181,6 @@ export function pickScenarioBiased(): AiScenarioRow {
 }
 
 /**
- * 組合題幹中文（依情境類型與可選轉牌）。
- *
- * @param scenario 情境列（含 type / position）
- * @param board flop
- * @param hand Hero
- * @param turnCard 有則題幹為 `flop → turn`
- */
-function buildQuestionText(
-  scenario: AiScenarioRow,
-  board: BoardTexture,
-  hand: HeroHandPick,
-  turnCard?: TurnCardPick,
-): string {
-  const boardStr = turnCard ? `${board.board} → ${turnCard.card}` : board.board
-  const { facing } = spotContextForPosition(scenario.position)
-
-  switch (scenario.type) {
-    case 'flop-cbet':
-      return `${boardStr}（${board.type}），持有 ${hand.cards}（${hand.type}）。${scenario.position}。Flop：${facing}。應如何行動？`
-    case 'bb-defense':
-      return `${boardStr}（${board.type}），BB 持有 ${hand.cards}（${hand.type}）。面對 ${scenario.position.includes('大注') ? '大注 67%' : '小注 33%'}，應如何回應？`
-    case 'turn-barrel':
-      return `翻牌後進入轉牌：${boardStr}。${scenario.position}，持有 ${hand.cards}（${hand.type}）。BB check，應繼續下注還是 Check？`
-    case 'probe-bet':
-      return `翻牌雙方都 check。轉牌：${boardStr}。${scenario.position}，BB 持有 ${hand.cards}（${hand.type}）。BB 先行動，應該 Probe 還是 Check？`
-  }
-}
-
-/**
  * 轉牌／probe 時顯示用 board 字串（含轉牌）。
  */
 function displayBoardString(board: BoardTexture, turnCard?: TurnCardPick): string {
@@ -261,11 +188,17 @@ function displayBoardString(board: BoardTexture, turnCard?: TurnCardPick): strin
 }
 
 /**
- * boardType 附註轉牌質地（若有）。
+ * boardType 附註轉牌質地（若有），依介面語系。
+ *
+ * @param lang - 介面語言
  */
-function displayBoardType(board: BoardTexture, turnCard?: TurnCardPick): string {
-  if (!turnCard) return board.type
-  return `${board.type}（轉：${turnCard.type}）`
+function displayBoardType(board: BoardTexture, turnCard: TurnCardPick | undefined, lang: Language): string {
+  const bt = boardTextureTypeLabel(board.type, lang)
+  if (!turnCard) return bt
+  const tt = turnCardTypeLabel(turnCard.type, lang)
+  if (lang === 'en') return `${bt} (turn: ${tt})`
+  if (lang === 'zh-CN') return `${bt}（转：${tt}）`
+  return `${bt}（轉：${tt}）`
 }
 
 const PRINCIPLES_FOR_SCENARIO: Record<AiScenarioType, string> = {
@@ -308,26 +241,34 @@ const PRINCIPLES_FOR_SCENARIO: Record<AiScenarioType, string> = {
  * @param board flop 質地
  * @param hand Hero 手牌
  * @param turnCard 轉牌／probe 時可選，用於敘述 `flop → turn`
+ * @param lang - 介面語言（選項與 explanation 語言須一致）
  */
 function buildPrompt(
   scenario: AiScenarioRow,
   board: BoardTexture,
   hand: HeroHandPick,
-  turnCard?: TurnCardPick,
+  turnCard: TurnCardPick | undefined,
+  lang: Language,
 ): string {
-  const options = SCENARIO_OPTIONS[scenario.type]
+  const options = SCENARIO_OPTIONS_BY_LANG[lang][scenario.type]
   const allowedList = options.map((o) => `"${o}"`).join(', ')
-  const { pot, facing } = spotContextForPosition(scenario.position)
+  const { pot, facing } = spotContextForLang(scenario.position, lang)
+  const scenarioIdx = indexOfAiScenarioPosition(scenario.position)
+  const positionLine =
+    scenarioIdx >= 0 ? aiScenarioPositionByIndex(scenarioIdx, lang) : scenario.position
+  const boardTypeLine = boardTextureTypeLabel(board.type, lang)
 
   const boardDescription = turnCard
-    ? `${board.board} → ${turnCard.card}（轉牌 ${turnCard.type}）`
+    ? `${board.board} → ${turnCard.card}（${turnCardTypeLabel(turnCard.type, lang)}）`
     : board.board
+
+  const explainHint = claudeExplanationLanguageDirective(lang)
 
   return `You are a GTO poker coach. Generate a postflop training question.
 
 Scenario type: ${scenario.type}
-Position: ${scenario.position}
-Board: ${boardDescription} (${board.type})
+Position: ${positionLine}
+Board: ${boardDescription} (${boardTypeLine})
 Hero hand: ${hand.cards} (${hand.type})
 Pot: ${pot}
 Villain action: ${facing}
@@ -337,10 +278,12 @@ The correctAnswer field MUST be exactly one of these strings (copy character-for
 GTO principles for this scenario type:
 ${PRINCIPLES_FOR_SCENARIO[scenario.type]}
 
+For the "explanation" field: ${explainHint}
+
 Respond ONLY in this JSON format (no markdown, no extra text):
 {
   "correctAnswer": "<one of the allowed strings above, exact match>",
-  "explanation": "繁體中文說明（2-3句，說明為何是這個答案）"
+  "explanation": "<your explanation text>"
 }`
 }
 
@@ -360,39 +303,54 @@ function parseClaudeJson(text: string): { correctAnswer: string; explanation: st
   }
 }
 
-function isValidAnswerForScenario(type: AiScenarioType, answer: string): boolean {
-  return (SCENARIO_OPTIONS[type] as readonly string[]).includes(answer)
+function isValidAnswerForScenario(type: AiScenarioType, answer: string, lang: Language): boolean {
+  return (SCENARIO_OPTIONS_BY_LANG[lang][type] as readonly string[]).includes(answer)
 }
 
 /**
  * API 失敗或無金鑰時的備用 AI 風格題目。
  *
  * @param turnCard 轉牌情境時傳入，題幹與 board 會一併帶入轉牌。
+ * @param lang - 介面語言
  */
 export function buildFallbackAIQuestion(
   scenario: AiScenarioRow,
   board: BoardTexture,
   hand: HeroHandPick,
-  turnCard?: TurnCardPick,
+  turnCard: TurnCardPick | undefined,
+  lang: Language,
 ): PostflopQuestion {
-  const options = SCENARIO_OPTIONS[scenario.type]
+  const options = SCENARIO_OPTIONS_BY_LANG[lang][scenario.type]
   const correctAnswer = options[0]!
-  const { pot, facing } = spotContextForPosition(scenario.position)
+  const { pot, facing } = spotContextForLang(scenario.position, lang)
+  const scenarioIdx = indexOfAiScenarioPosition(scenario.position)
+  const positionDisplay =
+    scenarioIdx >= 0 ? aiScenarioPositionByIndex(scenarioIdx, lang) : scenario.position
+  const fb = postflopFallbackCopy(lang)
 
   return {
     id: `ai-fallback-${Date.now()}`,
     type: 'ai',
-    position: scenario.position,
+    positionRecord: scenario.position,
+    position: positionDisplay,
     heroCards: hand.cards,
     board: displayBoardString(board, turnCard),
-    boardType: displayBoardType(board, turnCard),
+    boardType: displayBoardType(board, turnCard, lang),
     pot,
     facing,
-    question: buildQuestionText(scenario, board, hand, turnCard),
+    question: buildAiQuestionText(
+      scenario.type,
+      scenario.position,
+      positionDisplay,
+      board,
+      hand,
+      lang,
+      turnCard,
+    ),
     options: [...options],
     correctAnswer,
-    explanation: '無法連線至 Claude API。此為備用題，請以 solver 為準。',
-    source: '備用題（API 不可用）',
+    explanation: fb.explanation,
+    source: fb.source,
   }
 }
 
@@ -436,51 +394,65 @@ async function fetchClaudeMessage(prompt: string): Promise<string> {
  * 以 Claude 依情境產生單選題；失敗時改回傳 {@link buildFallbackAIQuestion}。
  *
  * @param turnCard `turn-barrel`／`probe-bet` 時建議傳入，以豐富牌面敘述。
+ * @param lang - 介面語言
  */
 export async function generateAIQuestion(
   scenario: AiScenarioRow,
   board: BoardTexture,
   hand: HeroHandPick,
-  turnCard?: TurnCardPick,
+  turnCard: TurnCardPick | undefined,
+  lang: Language,
 ): Promise<PostflopQuestion> {
-  const { pot, facing } = spotContextForPosition(scenario.position)
-  const prompt = buildPrompt(scenario, board, hand, turnCard)
-  const options = [...SCENARIO_OPTIONS[scenario.type]]
+  const { pot, facing } = spotContextForLang(scenario.position, lang)
+  const prompt = buildPrompt(scenario, board, hand, turnCard, lang)
+  const options = [...SCENARIO_OPTIONS_BY_LANG[lang][scenario.type]]
+  const scenarioIdx = indexOfAiScenarioPosition(scenario.position)
+  const positionDisplay =
+    scenarioIdx >= 0 ? aiScenarioPositionByIndex(scenarioIdx, lang) : scenario.position
 
   try {
     if (!import.meta.env.DEV && !import.meta.env.VITE_ANTHROPIC_API_KEY) {
-      return buildFallbackAIQuestion(scenario, board, hand, turnCard)
+      return buildFallbackAIQuestion(scenario, board, hand, turnCard, lang)
     }
 
     const text = await fetchClaudeMessage(prompt)
     const parsed = parseClaudeJson(text)
     if (!parsed) {
-      return buildFallbackAIQuestion(scenario, board, hand, turnCard)
+      return buildFallbackAIQuestion(scenario, board, hand, turnCard, lang)
     }
 
-    const valid = isValidAnswerForScenario(scenario.type, parsed.correctAnswer)
+    const valid = isValidAnswerForScenario(scenario.type, parsed.correctAnswer, lang)
     if (!valid) {
-      return buildFallbackAIQuestion(scenario, board, hand, turnCard)
+      return buildFallbackAIQuestion(scenario, board, hand, turnCard, lang)
     }
 
     const id = `ai-${Date.now()}`
     return {
       id,
       type: 'ai',
-      position: scenario.position,
+      positionRecord: scenario.position,
+      position: positionDisplay,
       heroCards: hand.cards,
       board: displayBoardString(board, turnCard),
-      boardType: displayBoardType(board, turnCard),
+      boardType: displayBoardType(board, turnCard, lang),
       pot,
       facing,
-      question: buildQuestionText(scenario, board, hand, turnCard),
+      question: buildAiQuestionText(
+        scenario.type,
+        scenario.position,
+        positionDisplay,
+        board,
+        hand,
+        lang,
+        turnCard,
+      ),
       options,
       correctAnswer: parsed.correctAnswer,
       explanation: parsed.explanation,
-      source: 'Claude AI 估算（基於 GTO 原則）',
+      source: postflopAiSourceLabel(lang),
     }
   } catch {
-    return buildFallbackAIQuestion(scenario, board, hand, turnCard)
+    return buildFallbackAIQuestion(scenario, board, hand, turnCard, lang)
   }
 }
 

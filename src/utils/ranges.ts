@@ -1,6 +1,8 @@
 // utils/ranges.ts
 // Source: PokerCoaching 6-max 100bb GTO ranges (solver-based)
 
+import type { OpponentType } from '../types/opponentType'
+
 export const RANKS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2']
 
 /**
@@ -112,10 +114,88 @@ export function isRFI(handIdx: number, position: string): boolean {
 
 /**
  * @param position - 位置代碼
- * @returns Raise 佔 169 組合的百分比（一位小數）
+ * @returns Raise 佔 169 組合的百分比 0–100（一位小數）
  */
 export function getRFIPercent(position: string): number {
-  return Math.round(((RFI_SETS[position]?.size ?? 0) / 169) * 10) / 10
+  const pct = ((RFI_SETS[position]?.size ?? 0) / 169) * 100
+  return Math.round(pct * 10) / 10
+}
+
+/** 對魚桌額外開池（非 GTO 內、+EV vs 高 VPIP）；UTG 維持不擴。 */
+const FISH_RFI_EXTRA_RANGES: Record<string, string> = {
+  UTG: '',
+  HJ: '22',
+  CO: '22,A7o,K9o',
+  BTN: '22,A2o,A3o,K6o,K7o,Q8o',
+  SB: '22,A4o,K7o',
+}
+
+/** 對超緊桌收緊：從 GTO 開池中移除的邊緣牌。 */
+const NIT_RFI_REMOVE_RANGES: Record<string, string> = {
+  UTG: 'A3s,66',
+  HJ: 'A2s,55,76s',
+  CO: 'K3s,Q6s,55',
+  BTN: 'K2s,Q3s,J4s,96s,85s',
+  SB: '22,65s,76s',
+}
+
+/** 各位置「對魚加開」手牌索引（僅額外格，不含 GTO 內重複）。 */
+export const FISH_RFI_SETS: Record<string, Set<number>> = {}
+/** 各位置「對 Nit 關閉」手牌索引（須為 GTO 開池子集）。 */
+export const NIT_RFI_REMOVE_SETS: Record<string, Set<number>> = {}
+
+for (const [pos, range] of Object.entries(FISH_RFI_EXTRA_RANGES)) {
+  FISH_RFI_SETS[pos] = range.trim() ? parseRange(range) : new Set()
+}
+for (const [pos, range] of Object.entries(NIT_RFI_REMOVE_RANGES)) {
+  NIT_RFI_REMOVE_SETS[pos] = range.trim() ? parseRange(range) : new Set()
+}
+
+/** RFI 矩陣著色：標準開池／棄牌／對魚加開／對 Nit 關閉。 */
+export type RfiMatrixCellKind = 'raise' | 'fold' | 'extra' | 'removed'
+
+/**
+ * 依桌型取得 RFI 矩陣單格視覺類別（與 {@link getCorrectRFIAction} 一致）。
+ *
+ * @param handIdx - 0–168
+ * @param position - UTG | HJ | CO | BTN | SB
+ * @param opponentType - 桌型
+ */
+export function getRFIMatrixCellKind(
+  handIdx: number,
+  position: string,
+  opponentType: OpponentType,
+): RfiMatrixCellKind {
+  const gtoRaise = isRFI(handIdx, position)
+  if (opponentType === 'fish') {
+    if (FISH_RFI_SETS[position]?.has(handIdx) && !gtoRaise) return 'extra'
+  }
+  if (opponentType === 'nit') {
+    if (NIT_RFI_REMOVE_SETS[position]?.has(handIdx) && gtoRaise) return 'removed'
+  }
+  return gtoRaise ? 'raise' : 'fold'
+}
+
+/**
+ * RFI 測驗依桌型之正解（raise／fold）。
+ *
+ * @param handIdx - 0–168
+ * @param position - 練習位置
+ * @param opponentType - 全域桌型
+ */
+export function getCorrectRFIAction(
+  handIdx: number,
+  position: string,
+  opponentType: OpponentType,
+): 'raise' | 'fold' {
+  const gtoRaise = isRFI(handIdx, position)
+  if (opponentType === 'nit') {
+    if (NIT_RFI_REMOVE_SETS[position]?.has(handIdx) && gtoRaise) return 'fold'
+  }
+  if (opponentType === 'fish') {
+    if (FISH_RFI_SETS[position]?.has(handIdx)) return 'raise'
+  }
+  return gtoRaise ? 'raise' : 'fold'
 }
 
 // ─── VS RFI（面對開池）────────────────────────────────────────────

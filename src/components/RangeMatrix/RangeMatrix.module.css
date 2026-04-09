@@ -52,6 +52,19 @@
   color: #ffffff;
 }
 
+/** 對魚桌：GTO 範圍外的額外開池格 */
+.cellExtra {
+  background: #f59e0b;
+  color: #ffffff;
+}
+
+/** 對 Nit：自 GTO 開池中移除的邊緣牌 */
+.cellRemoved {
+  background: #374151;
+  color: #6b7280;
+  text-decoration: line-through;
+}
+
 .cellFoldDark {
   background: #1c1c1e;
   color: #52525b;

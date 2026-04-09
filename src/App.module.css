@@ -70,8 +70,10 @@
 @media (min-width: 769px) {
   .desktopTopBar {
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
     align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
     padding: 14px 20px 12px;
     padding-right: max(20px, env(safe-area-inset-right, 0px));
     border-bottom: 1px solid #27272a;
@@ -80,6 +82,17 @@
     top: 0;
     z-index: 40;
   }
+}
+
+.desktopTopBarLeft {
+  flex: 1;
+  min-width: 0;
+  max-width: min(720px, 100%);
+}
+
+/** 行動版：頂欄下方桌型列（桌面版隱藏） */
+.mobileOpponentBar {
+  display: none;
 }
 
 .userCard {
@@ -147,6 +160,24 @@
 .userSignOut:hover {
   color: #fafafa;
   border-color: #f97316;
+}
+
+.userManageSubBtn {
+  margin-top: 6px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #a1a1aa;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.userManageSubBtn:hover {
+  color: #fafafa;
 }
 
 .loginPromoRow {
@@ -389,6 +420,18 @@
   flex-direction: column;
 }
 
+.comingSoonCenter {
+  grid-column: 1 / -1;
+  min-height: 46vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: clamp(28px, 5vw, 40px);
+  font-weight: 700;
+  color: #e4e4e7;
+}
+
 @media (max-width: 900px) {
   .main {
     grid-template-columns: 1fr;
@@ -396,6 +439,17 @@
 }
 
 @media (max-width: 768px) {
+  .mobileOpponentBar {
+    display: block;
+    padding: 8px 14px 10px;
+    padding-left: max(14px, env(safe-area-inset-left, 0px));
+    padding-right: max(14px, env(safe-area-inset-right, 0px));
+    border-bottom: 1px solid #27272a;
+    background: #121214;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .mobileHeaderUser {
     display: flex;
     align-items: center;

@@ -63,6 +63,36 @@
   font-weight: 600;
 }
 
+.matrixLegend {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(39, 39, 42, 0.65);
+  border: 1px solid #3f3f46;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #d4d4d8;
+}
+
+.legendTitle {
+  font-weight: 700;
+  color: #fafafa;
+  margin-bottom: 6px;
+}
+
+.legendList {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.legendList li {
+  margin-bottom: 4px;
+}
+
+.legendList li:last-child {
+  margin-bottom: 0;
+}
+
 @media (max-width: 768px) {
   .toggle {
     min-height: 48px;

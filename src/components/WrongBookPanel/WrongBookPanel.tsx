@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
+import { clearWrongQuizEntries, loadWrongQuizEntries, WRONG_BOOK_EVENT, type WrongQuizEntry } from '../../utils/wrongBook'
 import {
-  clearWrongQuizEntries,
   formatWrongBookForCopy,
-  loadWrongQuizEntries,
-  MODE_LABEL,
-  WRONG_BOOK_EVENT,
-  type WrongQuizEntry,
-} from '../../utils/wrongBook'
+  formatWrongQuizEntryLine,
+  trainingModeDisplayLabel,
+} from '../../utils/wrongBookFormat'
+import type { Language } from '../../i18n/types'
 import { useTranslation } from '../../i18n/LanguageContext'
 import styles from './WrongBookPanel.module.css'
 
@@ -19,8 +18,17 @@ export interface WrongBookPanelProps {
 /**
  * 錯題本：瀏覽、複製全文、清空（資料存於 localStorage）。
  */
+/**
+ * @param lang - 介面語言（對應 `Intl` locale）
+ */
+function intlLocaleForLang(lang: Language): string {
+  if (lang === 'zh-CN') return 'zh-CN'
+  if (lang === 'zh-TW') return 'zh-TW'
+  return 'en-US'
+}
+
 export function WrongBookPanel({ open, onClose }: WrongBookPanelProps) {
-  const { t } = useTranslation()
+  const { t, lang } = useTranslation()
   const [entries, setEntries] = useState<WrongQuizEntry[]>([])
   const [toast, setToast] = useState<string | null>(null)
 
@@ -54,7 +62,7 @@ export function WrongBookPanel({ open, onClose }: WrongBookPanelProps) {
   }, [])
 
   const handleCopyAll = useCallback(async () => {
-    const text = formatWrongBookForCopy(entries)
+    const text = formatWrongBookForCopy(entries, t, intlLocaleForLang(lang))
     if (!text) {
       showToast(t.pages.wrongbook_toast_none)
       return
@@ -65,7 +73,7 @@ export function WrongBookPanel({ open, onClose }: WrongBookPanelProps) {
     } catch {
       showToast(t.pages.wrongbook_toast_fail)
     }
-  }, [entries, showToast, t.pages])
+  }, [entries, showToast, t, lang])
 
   const handleClear = useCallback(() => {
     if (entries.length === 0) return
@@ -122,10 +130,10 @@ export function WrongBookPanel({ open, onClose }: WrongBookPanelProps) {
               entries.map((e) => (
                 <div key={e.id} className={styles.row}>
                   <div className={styles.rowMeta}>
-                    <span className={styles.badge}>{MODE_LABEL[e.mode]}</span>
-                    {new Date(e.t).toLocaleString('zh-TW', { hour12: false })} · {e.handLabel}
+                    <span className={styles.badge}>{trainingModeDisplayLabel(e.mode, t.pages)}</span>
+                    {new Date(e.t).toLocaleString(intlLocaleForLang(lang), { hour12: false })} · {e.handLabel}
                   </div>
-                  {e.summary}
+                  {formatWrongQuizEntryLine(e, t)}
                 </div>
               ))
             )}

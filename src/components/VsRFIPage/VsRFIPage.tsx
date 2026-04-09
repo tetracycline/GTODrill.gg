@@ -6,6 +6,7 @@ import { PlayingCard } from '../PlayingCard/PlayingCard'
 import { RangeMatrix, type MatrixFlash } from '../RangeMatrix/RangeMatrix'
 import { ShortcutOverlay } from '../ShortcutOverlay/ShortcutOverlay'
 import { StatsBar } from '../StatsBar/StatsBar'
+import { OpponentProfile } from '../OpponentProfile/OpponentProfile'
 import { VsRFISettingsCard } from '../VsRFISettingsCard/VsRFISettingsCard'
 import type { Translations } from '../../i18n/types'
 import { useTranslation } from '../../i18n/LanguageContext'
@@ -198,6 +199,7 @@ export function VsRFIPage({ quiz }: VsRFIPageProps) {
         </div>
 
         <div className={styles.colRight}>
+          <OpponentProfile />
           <button
             type="button"
             className={`${styles.toggle} ${showRange ? styles.toggleActive : ''}`}

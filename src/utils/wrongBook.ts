@@ -14,6 +14,25 @@ const MAX_ENTRIES = 400
 export type WrongQuizMode = 'rfi' | 'vsrfi' | 'bvb' | 'vs3bet' | 'vs4bet' | 'pushfold'
 
 /**
+ * 結構化錯題內容（供介面依語系組字；舊資料僅有 `summary`）。
+ */
+export type WrongQuizParts =
+  | {
+      k: 'rfi'
+      position: string
+      user: 'raise' | 'fold'
+      /** 依目前桌型判定之正解（可能與純 GTO 不同）。 */
+      gto: 'raise' | 'fold'
+      /** 純 solver GTO；僅在與 `gto` 不同時寫入。 */
+      solverGto?: 'raise' | 'fold'
+    }
+  | { k: 'vsrfi'; villainPos: string; heroPos: string; user: VsRFIAction; gto: VsRFIAction }
+  | { k: 'bvb'; spot: 'bb_defend' | 'sb_vs_3bet'; user: BvBBBAction | BvBSBVs3betAction; gto: BvBBBAction | BvBSBVs3betAction }
+  | { k: 'vs3bet'; openerPos: string; user: Vs3betAction; gto: Vs3betAction }
+  | { k: 'vs4bet'; user: Vs4betAction; gto: Vs4betAction }
+  | { k: 'pushfold'; position: string; stackBb: number; user: 'push' | 'fold'; gto: 'push' | 'fold' }
+
+/**
  * 單筆錯題紀錄（存於 localStorage）。
  */
 export interface WrongQuizEntry {
@@ -24,17 +43,10 @@ export interface WrongQuizEntry {
   /** 抽象手牌，如 AKs */
   handLabel: string
   handIdx: number
-  /** 單行中文摘要，供列表與複製 */
+  /** 舊版繁中單行摘要；新版請優先使用 {@link parts} */
   summary: string
-}
-
-const MODE_LABEL: Record<WrongQuizMode, string> = {
-  rfi: 'RFI',
-  vsrfi: 'VS RFI',
-  bvb: 'BvB',
-  vs3bet: 'VS 3-Bet',
-  vs4bet: 'VS 4-Bet',
-  pushfold: 'Push/Fold',
+  /** 結構化欄位，供多語顯示 */
+  parts?: WrongQuizParts
 }
 
 const EVT = 'gto-wrong-book-updated'
@@ -112,7 +124,7 @@ export function loadWrongQuizEntries(): WrongQuizEntry[] {
  * 寫入一筆錯題並觸發 {@link EVT}。
  */
 export function appendWrongQuizEntry(
-  partial: Omit<WrongQuizEntry, 'id' | 't'>,
+  partial: Omit<WrongQuizEntry, 'id' | 't'> & { parts: WrongQuizParts },
 ): void {
   if (typeof window === 'undefined') return
   const entry: WrongQuizEntry = {
@@ -143,18 +155,6 @@ export function clearWrongQuizEntries(): void {
   }
 }
 
-/**
- * 將所有摘要組成文字（複製用）。
- */
-export function formatWrongBookForCopy(entries: WrongQuizEntry[]): string {
-  if (entries.length === 0) return ''
-  const lines = entries.map((e) => {
-    const date = new Date(e.t).toLocaleString('zh-TW', { hour12: false })
-    return `[${date}] [${MODE_LABEL[e.mode]}] ${e.summary}`
-  })
-  return lines.join('\n')
-}
-
 /** 自訂事件名稱，供 UI 訂閱刷新 */
 export const WRONG_BOOK_EVENT = EVT
 
@@ -166,13 +166,27 @@ export function recordRfiWrong(params: {
   handIdx: number
   user: 'raise' | 'fold'
   gto: 'raise' | 'fold'
+  solverGto?: 'raise' | 'fold'
 }): void {
   const handLabel = handLabelFromIdx(params.handIdx)
+  const exp = params.gto
+  const sol = params.solverGto
+  const summary =
+    sol !== undefined && sol !== exp
+      ? `${params.position} · ${handLabel} — 你：${labelRfi(params.user)} · 依桌型：${labelRfi(exp)} · 純 GTO：${labelRfi(sol)}`
+      : `${params.position} · ${handLabel} — 你：${labelRfi(params.user)} · GTO：${labelRfi(exp)}`
   appendWrongQuizEntry({
     mode: 'rfi',
     handIdx: params.handIdx,
     handLabel,
-    summary: `${params.position} · ${handLabel} — 你：${labelRfi(params.user)} · GTO：${labelRfi(params.gto)}`,
+    summary,
+    parts: {
+      k: 'rfi',
+      position: params.position,
+      user: params.user,
+      gto: exp,
+      ...(sol !== undefined && sol !== exp ? { solverGto: sol } : {}),
+    },
   })
 }
 
@@ -192,6 +206,13 @@ export function recordVsRfiWrong(params: {
     handIdx: params.handIdx,
     handLabel,
     summary: `Villain ${params.villainPos} → Hero ${params.heroPos} · ${handLabel} — 你：${labelVsRfi(params.user)} · GTO：${labelVsRfi(params.gto)}`,
+    parts: {
+      k: 'vsrfi',
+      villainPos: params.villainPos,
+      heroPos: params.heroPos,
+      user: params.user,
+      gto: params.gto,
+    },
   })
 }
 
@@ -211,6 +232,12 @@ export function recordBvBWrong(params: {
     handIdx: params.handIdx,
     handLabel,
     summary: `${spotLabel} · ${handLabel} — 你：${labelBvB(params.user)} · GTO：${labelBvB(params.gto)}`,
+    parts: {
+      k: 'bvb',
+      spot: params.spot,
+      user: params.user,
+      gto: params.gto,
+    },
   })
 }
 
@@ -229,6 +256,12 @@ export function recordVs3betWrong(params: {
     handIdx: params.handIdx,
     handLabel,
     summary: `開池 ${params.openerPos} · ${handLabel} — 你：${labelVs3(params.user)} · GTO：${labelVs3(params.gto)}`,
+    parts: {
+      k: 'vs3bet',
+      openerPos: params.openerPos,
+      user: params.user,
+      gto: params.gto,
+    },
   })
 }
 
@@ -246,6 +279,11 @@ export function recordVs4betWrong(params: {
     handIdx: params.handIdx,
     handLabel,
     summary: `${handLabel} — 你：${labelVs4(params.user)} · GTO：${labelVs4(params.gto)}`,
+    parts: {
+      k: 'vs4bet',
+      user: params.user,
+      gto: params.gto,
+    },
   })
 }
 
@@ -265,7 +303,13 @@ export function recordPushFoldWrong(params: {
     handIdx: params.handIdx,
     handLabel,
     summary: `${params.position} · ${params.stackBb}bb · ${handLabel} — 你：${labelPush(params.user)} · GTO：${labelPush(params.gto)}`,
+    parts: {
+      k: 'pushfold',
+      position: params.position,
+      stackBb: params.stackBb,
+      user: params.user,
+      gto: params.gto,
+    },
   })
 }
 
-export { MODE_LABEL }
