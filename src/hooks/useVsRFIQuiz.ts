@@ -1,6 +1,8 @@
 import type { Dispatch, SetStateAction } from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { getVsRFIAction, type VsRFIAction } from '../utils/ranges'
+import type { VsRFIAction } from '../utils/ranges'
+import { useOpponentType } from '../contexts/OpponentTypeContext'
+import { getAdjustedVsRFIAction } from '../utils/exploitRanges'
 import { recordVsRfiWrong } from '../utils/wrongBook'
 import { randomHandWeighted } from '../utils/quiz'
 import { pickComboForHandIndex } from '../utils/cardCombo'
@@ -56,6 +58,7 @@ export function useVsRFIQuiz(
   const integrationRef = useRef(integration)
   integrationRef.current = integration
   const dealSeqRef = useRef(0)
+  const { opponentType } = useOpponentType()
 
   const [villainPos, setVillainPos] = useState('UTG')
   const [heroPos, setHeroPos] = useState('BB')
@@ -124,8 +127,8 @@ export function useVsRFIQuiz(
       if (invalidComboHint) return
       if (phase !== 'question') return
 
-      const gto = getVsRFIAction(currentHandIdx, heroPos, villainPos)
-      const correct = action === gto
+      const expected = getAdjustedVsRFIAction(currentHandIdx, heroPos, villainPos, opponentType)
+      const correct = action === expected
 
       if (!correct) {
         recordVsRfiWrong({
@@ -133,7 +136,7 @@ export function useVsRFIQuiz(
           heroPos,
           handIdx: currentHandIdx,
           user: action,
-          gto,
+          gto: expected,
         })
       }
 
@@ -162,6 +165,7 @@ export function useVsRFIQuiz(
       currentHandIdx,
       heroPos,
       villainPos,
+      opponentType,
       clearAdvanceTimer,
       dealRandom,
       setStats,

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { handName, getVsRFIAction, type VsRFIAction } from '../../utils/ranges'
+import { handName, type VsRFIAction } from '../../utils/ranges'
 import { useKeyboard } from '../../hooks/useKeyboard'
 import { useVsRFIQuiz } from '../../hooks/useVsRFIQuiz'
 import { PlayingCard } from '../PlayingCard/PlayingCard'
@@ -10,6 +10,8 @@ import { OpponentProfile } from '../OpponentProfile/OpponentProfile'
 import { VsRFISettingsCard } from '../VsRFISettingsCard/VsRFISettingsCard'
 import type { Translations } from '../../i18n/types'
 import { useTranslation } from '../../i18n/LanguageContext'
+import { useOpponentType } from '../../contexts/OpponentTypeContext'
+import { getAdjustedVsRFIAction } from '../../utils/exploitRanges'
 import styles from './VsRFIPage.module.css'
 
 /**
@@ -39,6 +41,7 @@ export interface VsRFIPageProps {
  */
 export function VsRFIPage({ quiz }: VsRFIPageProps) {
   const { t } = useTranslation()
+  const { opponentType } = useOpponentType()
   const [shortcutOpen, setShortcutOpen] = useState(false)
   const [matrixFlash, setMatrixFlash] = useState<MatrixFlash>(null)
 
@@ -72,8 +75,8 @@ export function VsRFIPage({ quiz }: VsRFIPageProps) {
   }, [phase, lastCorrect, currentHandIdx])
 
   const getMatrixAction = useCallback(
-    (idx: number) => getVsRFIAction(idx, heroPos, villainPos),
-    [heroPos, villainPos],
+    (idx: number) => getAdjustedVsRFIAction(idx, heroPos, villainPos, opponentType),
+    [heroPos, villainPos, opponentType],
   )
 
   const toggleShortcutOverlay = useCallback(() => setShortcutOpen((o) => !o), [])
@@ -101,7 +104,7 @@ export function VsRFIPage({ quiz }: VsRFIPageProps) {
   const r = Math.floor(currentHandIdx / 13)
   const c = currentHandIdx % 13
   const name = handName(r, c)
-  const gto = getVsRFIAction(currentHandIdx, heroPos, villainPos)
+  const gto = getAdjustedVsRFIAction(currentHandIdx, heroPos, villainPos, opponentType)
   const gtoLabel = gtoActionLabel(gto, t)
 
   return (

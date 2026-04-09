@@ -1,5 +1,7 @@
 import { useCallback, useId, useMemo, useState } from 'react'
 import { useTranslation } from '../../i18n/LanguageContext'
+import { useOpponentType } from '../../contexts/OpponentTypeContext'
+import type { OpponentType } from '../../types/opponentType'
 import {
   getExploitAdvice,
   type ExploitAdvice,
@@ -27,6 +29,7 @@ export interface OpponentProfileProps {
  */
 export function OpponentProfile({ placement = 'inline' }: OpponentProfileProps) {
   const { t, lang } = useTranslation()
+  const { setOpponentType } = useOpponentType()
   const tp = t.opponent_profile
   const uid = useId()
   const [open, setOpen] = useState(false)
@@ -41,6 +44,16 @@ export function OpponentProfile({ placement = 'inline' }: OpponentProfileProps) 
     return Number.isFinite(n) ? n : 0
   }, [])
 
+  /**
+   * 依 HUD 統計估計桌型，並同步到全域 `opponentType`。
+   */
+  const inferOpponentType = useCallback((s: OpponentStats): OpponentType => {
+    if (s.vpip >= 40) return 'fish'
+    if (s.vpip <= 15 && s.pfr <= 12) return 'nit'
+    if (s.threebet >= 10) return 'aggro'
+    return 'reg'
+  }, [])
+
   const runAnalyze = useCallback(() => {
     const stats: OpponentStats = {
       vpip: parseStat(vpip),
@@ -48,25 +61,30 @@ export function OpponentProfile({ placement = 'inline' }: OpponentProfileProps) 
       threebet: parseStat(threebet),
       foldToCbet: parseStat(foldToCbet),
     }
+    setOpponentType(inferOpponentType(stats))
     setAdvices(getExploitAdvice(stats, lang))
-  }, [vpip, pfr, threebet, foldToCbet, lang, parseStat])
+  }, [vpip, pfr, threebet, foldToCbet, lang, parseStat, inferOpponentType, setOpponentType])
 
   const clearAll = useCallback(() => {
     setVpip('')
     setPfr('')
     setThreebet('')
     setFoldToCbet('')
+    setOpponentType('gto')
     setAdvices(null)
-  }, [])
+  }, [setOpponentType])
 
   const applyPreset = useCallback((key: keyof typeof PRESETS) => {
     const s = PRESETS[key]
+    const mapped: OpponentType =
+      key === 'fish' ? 'fish' : key === 'nit' ? 'nit' : key === 'shark' ? 'aggro' : 'reg'
     setVpip(String(s.vpip))
     setPfr(String(s.pfr))
     setThreebet(String(s.threebet))
     setFoldToCbet(String(s.foldToCbet))
+    setOpponentType(mapped)
     setAdvices(getExploitAdvice(s, lang))
-  }, [lang])
+  }, [lang, setOpponentType])
 
   const severityClass = useMemo(
     () => ({

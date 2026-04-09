@@ -222,7 +222,12 @@ export interface VsRFICell {
 
 const VS_RFI_DEFS: { villain: string; hero: string; threeBet: string; call: string }[] = [
   // HJ vs UTG (~6%)
-  { villain: 'UTG', hero: 'HJ', threeBet: 'AA,KK,QQ,AKs,AKo,A5s', call: '' },
+  {
+    villain: 'UTG',
+    hero: 'HJ',
+    threeBet: 'AA,KK,QQ,AKs,AKo,A5s',
+    call: 'JJ,AQs',
+  },
 
   // CO vs UTG (~8%)
   { villain: 'UTG', hero: 'CO', threeBet: 'AA,KK,QQ,JJ,AKs,AQs,AKo,A5s,A4s', call: '' },
@@ -254,8 +259,13 @@ const VS_RFI_DEFS: { villain: string; hero: string; threeBet: string; call: stri
     call: '99,88,77,ATs,A9s,KQs,KJs,KTs,QJs,JTs,T9s,98s,AJo,ATo,KQo,KJo',
   },
 
-  // SB vs UTG (~8%)
-  { villain: 'UTG', hero: 'SB', threeBet: 'AA,KK,QQ,AKs,AKo,A5s', call: 'JJ,TT,AQs,KQs' },
+  // SB vs UTG：幾乎不 call，僅 3bet／fold
+  {
+    villain: 'UTG',
+    hero: 'SB',
+    threeBet: 'AA,KK,QQ,AKs,AKo,A5s',
+    call: '',
+  },
 
   // SB vs HJ (~10%)
   {
