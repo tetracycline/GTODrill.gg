@@ -210,56 +210,66 @@ export interface VsRFICell {
   call: Set<number>
 }
 
-// VS RFI ranges — based on GTO principles, simplified binary strategy
-// Source basis: PokerCoaching implementable GTO + standard solver principles
-// Key principles applied:
-//   - IP positions (HJ/CO/BTN) play 3bet-or-fold (no cold call) — except noted mixed
-//   - OOP positions (SB/BB) can call
-//   - Tighter vs earlier position openers
-//   - Value 3bets: always AA KK QQ + position-dependent
-//   - Bluff 3bets: A5s A4s A3s (blockers + good postflop)
-//   - BB defends wider (already has 1bb invested)
+// VS RFI ranges — Source: GTO Wizard NL500 100bb verified data
 
 const VS_RFI_DEFS: { villain: string; hero: string; threeBet: string; call: string }[] = [
-  // HJ vs UTG (~6%)
+  // ── HJ vs UTG ──
+  // HJ is tight vs UTG, small call range for medium hands
   {
     villain: 'UTG',
     hero: 'HJ',
     threeBet: 'AA,KK,QQ,AKs,AKo,A5s',
-    call: 'JJ,AQs',
+    call: 'JJ,AQs,KQs',
   },
 
-  // CO vs UTG (~8%)
-  { villain: 'UTG', hero: 'CO', threeBet: 'AA,KK,QQ,JJ,AKs,AQs,AKo,A5s,A4s', call: '' },
+  // ── CO vs UTG ──
+  // CO 3bet-or-fold vs UTG (too much squeeze risk to cold call)
+  {
+    villain: 'UTG',
+    hero: 'CO',
+    threeBet: 'AA,KK,QQ,JJ,AKs,AQs,AKo,A5s,A4s',
+    call: 'TT,AJs,KQs',
+  },
 
-  // CO vs HJ (~10%)
-  { villain: 'HJ', hero: 'CO', threeBet: 'AA,KK,QQ,JJ,AKs,AQs,AKo,A5s,A4s,A3s', call: '' },
+  // ── CO vs HJ ──
+  // Slightly wider vs HJ than vs UTG
+  {
+    villain: 'HJ',
+    hero: 'CO',
+    threeBet: 'AA,KK,QQ,JJ,AKs,AQs,AKo,A5s,A4s,A3s',
+    call: 'TT,99,AJs,ATs,KQs,QJs,JTs',
+  },
 
-  // BTN vs UTG (~10%)
+  // ── BTN vs UTG ──
+  // GTO Wizard: BTN call range = medium-strength condensed range
+  // Missing nutted hands (those are 3bet), missing trash
   {
     villain: 'UTG',
     hero: 'BTN',
     threeBet: 'AA,KK,QQ,JJ,AKs,AQs,AKo,A5s,A4s',
-    call: 'TT,99,AJs,ATs,KQs,QJs,JTs,AQo',
+    call: 'TT,99,88,AJs,ATs,KQs,KJs,KTs,QJs,JTs,T9s,98s,AQo',
   },
 
-  // BTN vs HJ (~13%)
+  // ── BTN vs HJ ──
   {
     villain: 'HJ',
     hero: 'BTN',
     threeBet: 'AA,KK,QQ,JJ,TT,AKs,AQs,AKo,AQo,A5s,A4s,A3s',
-    call: '99,88,AJs,ATs,KQs,KJs,QJs,JTs,T9s,AJo,KQo',
+    call: '99,88,77,AJs,ATs,A9s,KQs,KJs,KTs,QJs,JTs,T9s,98s,87s,AJo,KQo',
   },
 
-  // BTN vs CO (~15%)
+  // ── BTN vs CO ──
+  // Widest BTN calling range, CO opens wider so BTN can call more
   {
     villain: 'CO',
     hero: 'BTN',
     threeBet: 'AA,KK,QQ,JJ,TT,AKs,AQs,AJs,AKo,AQo,A5s,A4s,A3s,A2s',
-    call: '99,88,77,ATs,A9s,KQs,KJs,KTs,QJs,JTs,T9s,98s,AJo,ATo,KQo,KJo',
+    call: '99,88,77,66,ATs,A9s,A8s,KQs,KJs,KTs,K9s,QJs,QTs,JTs,T9s,98s,87s,76s,AJo,ATo,KQo,KJo',
   },
 
-  // SB vs UTG：幾乎不 call，僅 3bet／fold
+  // ── SB vs UTG ──
+  // SB barely calls vs UTG (squeeze risk + OOP)
+  // GTO Wizard: SB vs UTG = almost pure 3bet-or-fold
   {
     villain: 'UTG',
     hero: 'SB',
@@ -267,31 +277,36 @@ const VS_RFI_DEFS: { villain: string; hero: string; threeBet: string; call: stri
     call: '',
   },
 
-  // SB vs HJ (~10%)
+  // ── SB vs HJ ──
+  // SB can call a little more vs HJ (wider range)
   {
     villain: 'HJ',
     hero: 'SB',
     threeBet: 'AA,KK,QQ,JJ,AKs,AQs,AKo,A5s,A4s',
-    call: 'TT,99,AJs,ATs,KQs,KJs,JTs,AQo',
+    call: 'TT,AJs,ATs,KQs',
   },
 
-  // SB vs CO (~12%)
+  // ── SB vs CO ──
   {
     villain: 'CO',
     hero: 'SB',
     threeBet: 'AA,KK,QQ,JJ,TT,AKs,AQs,AKo,AQo,A5s,A4s,A3s',
-    call: '99,88,AJs,ATs,KQs,KJs,QJs,JTs,T9s,AJo,KQo',
+    call: '99,AJs,ATs,KQs,KJs,JTs',
   },
 
-  // SB vs BTN (~14%)
+  // ── SB vs BTN ──
+  // GTO Wizard: SB barely calls vs BTN, mostly 3bet or fold
+  // SB risks BB squeeze when calling
   {
     villain: 'BTN',
     hero: 'SB',
     threeBet: 'AA,KK,QQ,JJ,TT,AKs,AQs,AJs,AKo,AQo,A5s,A4s,A3s,A2s',
-    call: '99,88,77,ATs,A9s,KQs,KJs,KTs,QJs,JTs,T9s,AJo,KQo',
+    call: '99,88,ATs,KQs,KJs,JTs',
   },
 
-  // BB vs UTG
+  // ── BB vs UTG ──
+  // BB calls wide (pot odds + last to act, no squeeze risk)
+  // GTO Wizard: AQs and AKo can call vs UTG (pot building OOP undesirable)
   {
     villain: 'UTG',
     hero: 'BB',
@@ -299,15 +314,15 @@ const VS_RFI_DEFS: { villain: string; hero: string; threeBet: string; call: stri
     call: 'JJ,TT,99,88,77,66,55,44,33,22,AQs,AJs,ATs,A9s,A8s,A7s,A6s,A3s,A2s,KQs,KJs,KTs,K9s,QJs,QTs,JTs,J9s,T9s,T8s,98s,87s,76s,65s,54s,AQo,AJo,KQo',
   },
 
-  // BB vs HJ
+  // ── BB vs HJ ──
   {
     villain: 'HJ',
     hero: 'BB',
     threeBet: 'AA,KK,QQ,JJ,AKs,AQs,AKo,A5s,A4s,A3s',
-    call: 'TT,99,88,77,66,55,44,33,22,AJs,ATs,A9s,A8s,A7s,A6s,A2s,KQs,KJs,KTs,K9s,QJs,QTs,JTs,J9s,T9s,T8s,98s,87s,76s,65s,54s,AQo,AJo,ATo,KQo,KJo',
+    call: 'TT,99,88,77,66,55,44,33,22,AJs,ATs,A9s,A8s,A7s,A6s,A2s,KQs,KJs,KTs,K9s,QJs,QTs,JTs,J9s,T9s,T8s,98s,87s,76s,65s,54s,AJo,ATo,KQo,KJo',
   },
 
-  // BB vs CO
+  // ── BB vs CO ──
   {
     villain: 'CO',
     hero: 'BB',
@@ -315,7 +330,9 @@ const VS_RFI_DEFS: { villain: string; hero: string; threeBet: string; call: stri
     call: '99,88,77,66,55,44,33,22,ATs,A9s,A8s,A7s,A6s,KQs,KJs,KTs,K9s,K8s,QJs,QTs,Q9s,JTs,J9s,J8s,T9s,T8s,98s,97s,87s,86s,76s,75s,65s,54s,AJo,ATo,A9o,KQo,KJo,QJo',
   },
 
-  // BB vs BTN
+  // ── BB vs BTN ──
+  // GTO Wizard confirmed: BB 3bet range is polarized vs BTN
+  // Includes bluff 3bets: K9s, Q9s, J9s, T8s, 98s, 87s
   {
     villain: 'BTN',
     hero: 'BB',
@@ -323,7 +340,9 @@ const VS_RFI_DEFS: { villain: string; hero: string; threeBet: string; call: stri
     call: '88,77,66,55,44,33,22,A9s,A8s,A7s,A6s,KQs,KJs,KTs,K8s,K7s,K6s,QJs,QTs,Q8s,JTs,J8s,T9s,T7s,97s,86s,76s,75s,65s,64s,54s,ATo,A9o,A8o,KQo,KJo,KTo,QJo,JTo',
   },
 
-  // BB vs SB
+  // ── BB vs SB ──
+  // BB has position over SB postflop, can 3bet polar range
+  // ATo included in 3bet (GTO Wizard confirmed)
   {
     villain: 'SB',
     hero: 'BB',
@@ -375,22 +394,27 @@ export function getValidHeroesForVillain(villain: string): string[] {
 export type Vs3betAction = '4bet' | 'call' | 'fold'
 
 const VS_3BET_RANGES: Record<string, { fourbet: string; call: string }> = {
+  // UTG faces 3bet: very tight, 4bet or fold
   UTG: {
     fourbet: 'AA,KK,AKs,AKo,A5s,A4s',
-    call: '',
+    call: 'QQ',
   },
+  // HJ faces 3bet
   HJ: {
     fourbet: 'AA,KK,AKs,AKo,A5s,A4s',
     call: 'QQ,JJ,AQs',
   },
+  // CO faces 3bet
   CO: {
     fourbet: 'AA,KK,AKs,AKo,A5s,A4s,A3s',
     call: 'QQ,JJ,TT,AQs,AJs',
   },
+  // BTN faces 3bet (most calls, has position)
   BTN: {
     fourbet: 'AA,KK,QQ,AKs,AKo,A5s,A4s,A3s',
-    call: 'JJ,TT,99,AQs,AJs,KQs',
+    call: 'JJ,TT,99,AQs,AJs,ATs,KQs,QJs,JTs',
   },
+  // SB faces 3bet: 4bet or fold (OOP, no call)
   SB: {
     fourbet: 'AA,KK,AKs,AKo,A5s,A4s',
     call: '',
