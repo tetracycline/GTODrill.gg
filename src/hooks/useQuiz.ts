@@ -7,6 +7,7 @@ import type { QuizIntegrationOptions } from './quizIntegration'
 import { recordRfiWrong } from '../utils/wrongBook'
 import { pickComboForHandIndex } from '../utils/cardCombo'
 import type { SuitCode } from '../utils/cardCombo'
+import { randomRfiHandBiased } from '../utils/quiz'
 
 export type QuizPhase = 'question' | 'result' | 'loading'
 
@@ -64,7 +65,7 @@ export function useQuiz(
   const dealRandom = useCallback(() => {
     dealSeqRef.current += 1
     const int = integrationRef.current
-    let idx = Math.floor(Math.random() * 169)
+    let idx = randomRfiHandBiased(currentPosition, opponentType)
     if (int?.weakReviewOnly && int.pickWeakHand) {
       const w = int.pickWeakHand('rfi', currentPosition)
       if (w != null) idx = w
@@ -77,7 +78,7 @@ export function useQuiz(
     setPhase('question')
     setLastCorrect(null)
     setLastUserAction(null)
-  }, [currentPosition, integration?.weakReviewOnly])
+  }, [currentPosition, integration?.weakReviewOnly, opponentType])
 
   useEffect(() => {
     dealRandom()
@@ -142,7 +143,7 @@ export function useQuiz(
       clearAdvanceTimer()
       advanceTimerRef.current = null
       setCurrentPosition(pos)
-      const idx = Math.floor(Math.random() * 169)
+      const idx = randomRfiHandBiased(pos, opponentType)
       setCurrentHandIdx(idx)
       setCurrentCombo(pickComboForHandIndex(idx))
       setPhase('question')
