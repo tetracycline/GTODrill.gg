@@ -259,12 +259,12 @@ function buildQuizIntegration(
  */
 function App() {
   const { t, lang, setLang } = useTranslation()
-  const { user, isLoggedIn, isAdmin, isPro, profile, signOut } = useAuth()
+  const { user, isLoggedIn, isAdmin, profile, signOut } = useAuth()
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [upgradeMessage, setUpgradeMessage] = useState<string | null>(null)
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [authModalReason, setAuthModalReason] = useState<AuthModalReason>('save-progress')
-  const hasProAccess = isPro || isAdmin
+  const hasProAccess = true
 
   const openAuthModal = useCallback((reason: AuthModalReason) => {
     setAuthModalReason(reason)
