@@ -34,8 +34,13 @@ const RFI_POSITION_ORDER = ['UTG', 'HJ', 'CO', 'BTN', 'SB'] as const
  *
  * @param position - 目前練習位置
  * @param opponentType - 桌型（會反映 fish/nit 調整後答案）
+ * @param getCorrectCount - 讀取此手牌在當前練習條件下的累積答對次數
  */
-export function randomRfiHandBiased(position: string, opponentType: OpponentType): number {
+export function randomRfiHandBiased(
+  position: string,
+  opponentType: OpponentType,
+  getCorrectCount?: (handIdx: number) => number,
+): number {
   const posIdx = RFI_POSITION_ORDER.indexOf(position as (typeof RFI_POSITION_ORDER)[number])
   if (posIdx < 0) return randomHandWeighted()
 
@@ -74,6 +79,15 @@ export function randomRfiHandBiased(position: string, opponentType: OpponentType
         }
       }
       if (sameAcrossAll) w *= 0.05
+
+      /**
+       * 熟練度衰減：
+       * 同題答對次數越高，後續抽中權重越低（1 / (1 + 0.35 * n)）。
+       */
+      if (getCorrectCount) {
+        const correctCount = Math.max(0, getCorrectCount(idx))
+        w *= 1 / (1 + 0.35 * correctCount)
+      }
 
       // 保底避免權重歸零，維持極小機率多樣性
       if (w < 0.01) w = 0.01

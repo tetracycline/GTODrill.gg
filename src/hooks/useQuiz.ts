@@ -25,6 +25,41 @@ export interface CurrentCombo {
 }
 
 const POSITIONS = ['UTG', 'HJ', 'CO', 'BTN', 'SB'] as const
+const RFI_MASTERY_KEY = 'rfi-mastery-correct-counts-v1'
+type RfiMasteryStore = Record<string, number>
+
+/**
+ * 建立 RFI 熟練度儲存鍵值（位置/桌型/手牌）。
+ */
+function rfiMasteryKey(position: string, opponentType: string, handIdx: number): string {
+  return `${position}|${opponentType}|${String(handIdx)}`
+}
+
+/**
+ * 載入本地熟練度（累積答對次數）。
+ */
+function loadRfiMasteryStore(): RfiMasteryStore {
+  try {
+    const raw = localStorage.getItem(RFI_MASTERY_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as Record<string, unknown>
+    const out: RfiMasteryStore = {}
+    for (const [k, v] of Object.entries(parsed)) {
+      const n = typeof v === 'number' ? v : Number(v)
+      if (Number.isFinite(n) && n > 0) out[k] = Math.floor(n)
+    }
+    return out
+  } catch {
+    return {}
+  }
+}
+
+/**
+ * 寫回本地熟練度。
+ */
+function saveRfiMasteryStore(store: RfiMasteryStore): void {
+  localStorage.setItem(RFI_MASTERY_KEY, JSON.stringify(store))
+}
 
 /**
  * RFI 測驗；練習位置為單選，變更時重發隨機手牌。
@@ -38,6 +73,7 @@ export function useQuiz(
   integrationRef.current = integration
   const dealSeqRef = useRef(0)
   const { opponentType } = useOpponentType()
+  const masteryRef = useRef<RfiMasteryStore>(loadRfiMasteryStore())
 
   const [currentPosition, setCurrentPosition] = useState('BTN')
   const [currentHandIdx, setCurrentHandIdx] = useState(0)
@@ -65,7 +101,11 @@ export function useQuiz(
   const dealRandom = useCallback(() => {
     dealSeqRef.current += 1
     const int = integrationRef.current
-    let idx = randomRfiHandBiased(currentPosition, opponentType)
+    let idx = randomRfiHandBiased(
+      currentPosition,
+      opponentType,
+      (handIdx) => masteryRef.current[rfiMasteryKey(currentPosition, opponentType, handIdx)] ?? 0,
+    )
     if (int?.weakReviewOnly && int.pickWeakHand) {
       const w = int.pickWeakHand('rfi', currentPosition)
       if (w != null) idx = w
@@ -123,6 +163,12 @@ export function useQuiz(
         handIdx: currentHandIdx,
       })
       integrationRef.current?.onDailyAnswer?.('rfi', correct)
+      if (correct) {
+        const key = rfiMasteryKey(currentPosition, opponentType, currentHandIdx)
+        const nextCount = (masteryRef.current[key] ?? 0) + 1
+        masteryRef.current = { ...masteryRef.current, [key]: nextCount }
+        saveRfiMasteryStore(masteryRef.current)
+      }
       setLastUserAction(action)
       setLastCorrect(correct)
       setPhase('result')
@@ -143,14 +189,18 @@ export function useQuiz(
       clearAdvanceTimer()
       advanceTimerRef.current = null
       setCurrentPosition(pos)
-      const idx = randomRfiHandBiased(pos, opponentType)
+      const idx = randomRfiHandBiased(
+        pos,
+        opponentType,
+        (handIdx) => masteryRef.current[rfiMasteryKey(pos, opponentType, handIdx)] ?? 0,
+      )
       setCurrentHandIdx(idx)
       setCurrentCombo(pickComboForHandIndex(idx))
       setPhase('question')
       setLastCorrect(null)
       setLastUserAction(null)
     },
-    [clearAdvanceTimer],
+    [clearAdvanceTimer, opponentType],
   )
 
   const resetStats = useCallback(() => {
